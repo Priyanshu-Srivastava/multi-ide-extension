@@ -1,0 +1,38 @@
+{
+  "ide": "cursor",
+  "globalManifest": "manifests/unified-cursor.json",
+  "unifiedVersion": "0.1.1",
+  "builtAt": "2026-04-24T12:33:52.103Z",
+  "teamsGroupedByName": [
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ],
+  "teams": [
+    {
+      "team": "team-a",
+      "id": "Priyanshu.omni-cursor-team-a",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team A (Cursor)"
+    },
+    {
+      "team": "team-b",
+      "id": "Priyanshu.omni-cursor-team-b",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team B (Cursor)"
+    },
+    {
+      "team": "team-c",
+      "id": "Priyanshu.omni-cursor-team-c",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team C (Cursor)"
+    },
+    {
+      "team": "team-d",
+      "id": "Priyanshu.omni-cursor-team-d",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team D (Cursor)"
+    }
+  ]
+}
