@@ -10,9 +10,27 @@
   "activationEvents": ["onStartupFinished"],
   "keywords": ["omni", "mcp", "team-d", "cursor"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "omni-explorer",
+          "title": "Omni IDE",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "omni-explorer": [
+        {
+          "id": "omni-features-team-d",
+          "name": "Team D",
+          "type": "tree"
+        }
+      ]
+    },
     "commands": [
-      { "command": "omni.team-d.showInfo",  "title": "Omni: Show Extension Info" },
-      { "command": "omni.team-d.listTools", "title": "Omni: List MCP Tools"      }
+      { "command": "omni.team-d.showInfo",             "title": "Omni: Show Extension Info" },
+      { "command": "omni.team-d.feature.openMath",     "title": "Omni: Open Math Panel"      }
     ]
   },
   "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }

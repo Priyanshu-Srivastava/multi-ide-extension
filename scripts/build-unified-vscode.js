@@ -24,6 +24,76 @@ function run(cmd, cwd) {
   execSync(cmd, { cwd: cwd || ROOT, stdio: 'inherit' });
 }
 
+function toTeamTitle(teamId) {
+  return String(teamId)
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function mergeUnifiedContributes(unifiedManifest, teamContributes) {
+  const containerId = unifiedManifest.sidebarContainerId || 'omni-explorer';
+
+  let container = null;
+  const views = [];
+  const seenViewIds = new Set();
+  const commands = [];
+  const seenCommands = new Set();
+
+  for (const entry of teamContributes) {
+    const contributes = entry.contributes || {};
+
+    const activitybar = contributes.viewsContainers && contributes.viewsContainers.activitybar;
+    if (!container && Array.isArray(activitybar) && activitybar.length > 0) {
+      container = activitybar.find((item) => item && item.id === containerId) || activitybar[0];
+    }
+
+    const viewGroups = contributes.views && typeof contributes.views === 'object' ? contributes.views : {};
+    let teamViews = [];
+    for (const maybeViews of Object.values(viewGroups)) {
+      if (Array.isArray(maybeViews)) {
+        teamViews = teamViews.concat(maybeViews);
+      }
+    }
+
+    if (teamViews.length === 0) {
+      teamViews = [{ id: `omni-features-${entry.team}`, name: toTeamTitle(entry.team), type: 'tree' }];
+    }
+
+    for (const view of teamViews) {
+      if (!view || !view.id || seenViewIds.has(view.id)) {
+        continue;
+      }
+      seenViewIds.add(view.id);
+      views.push(view);
+    }
+
+    const manifestCommands = Array.isArray(contributes.commands) ? contributes.commands : [];
+    for (const cmd of manifestCommands) {
+      if (!cmd || !cmd.command || seenCommands.has(cmd.command)) {
+        continue;
+      }
+      seenCommands.add(cmd.command);
+      commands.push(cmd);
+    }
+  }
+
+  const fallbackContainer = {
+    id: containerId,
+    title: 'Omni IDE',
+    icon: '$(extensions)',
+  };
+
+  return {
+    viewsContainers: {
+      activitybar: [container || fallbackContainer],
+    },
+    views: {
+      [containerId]: views,
+    },
+    commands,
+  };
+}
+
 function zipDirectorySync(srcDir, destFile) {
   if (process.platform === 'win32') {
     run(`powershell -NoProfile -Command "Compress-Archive -Path '${srcDir}\\*' -DestinationPath '${destFile}' -Force"`, ROOT);
@@ -37,7 +107,7 @@ const outDir = path.resolve(ROOT, getArg('--out') || 'artifacts');
 const ide = getArg('--ide') || 'vscode';
 
 if (!VALID_IDES.has(ide)) {
-  fail(`Invalid --ide value "${ide}". Expected vscode|cursor`);
+  fail(`Invalid --ide value "${ide}". Expected vscode|cursor|jetbrains`);
 }
 
 const UNIFIED_MANIFEST_PATH = path.join(ROOT, 'manifests', `unified-${ide}.json`);
@@ -68,6 +138,7 @@ if (teamIds.length === 0) {
 }
 
 const teamExtensions = [];
+const teamContributes = [];
 for (const teamId of teamIds) {
   const manifestPath = path.join(TEAMS_DIR, teamId, 'manifests', `${ide}.json`);
   if (!fs.existsSync(manifestPath)) {
@@ -85,6 +156,11 @@ for (const teamId of teamIds) {
     version: manifest.version || '0.0.0',
     displayName: manifest.displayName || manifest.name,
     defaultPort: manifest.sidecar && manifest.sidecar.defaultPort,
+  });
+
+  teamContributes.push({
+    team: teamId,
+    contributes: manifest.contributes || {},
   });
 }
 
@@ -119,6 +195,7 @@ if (ide === 'jetbrains') {
     },
   };
 } else {
+  const unifiedContributes = mergeUnifiedContributes(unifiedManifest, teamContributes);
   pkg = {
     name: unifiedManifest.name || `omni-${ide}-unified`,
     displayName: unifiedManifest.displayName || 'Omni IDE - Unified',
@@ -128,6 +205,9 @@ if (ide === 'jetbrains') {
     license: unifiedManifest.license || 'MIT',
     engines: unifiedManifest.engines || { vscode: '^1.80.0' },
     categories: unifiedManifest.categories || ['Other', 'AI'],
+    main: './main.js',
+    activationEvents: ['onStartupFinished'],
+    contributes: unifiedContributes,
     extensionPack: teamExtensions.map((t) => t.id),
     keywords: unifiedManifest.keywords || ['omni', 'unified', 'extension-pack', 'team-a', 'team-b', 'team-c', 'team-d'],
     repository: unifiedManifest.repository || { type: 'git', url: 'https://github.com/your-org/multi-ide-extension' },
@@ -160,6 +240,13 @@ const readme = [
 ].join('\n');
 
 fs.writeFileSync(path.join(stagingDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
+if (ide !== 'jetbrains') {
+  fs.writeFileSync(
+    path.join(stagingDir, 'main.js'),
+    "exports.activate = async function activate() {};\nexports.deactivate = function deactivate() {};\n",
+    'utf-8',
+  );
+}
 fs.writeFileSync(readmePath, readme, 'utf-8');
 
 const licensePath = path.join(ROOT, 'LICENSE');

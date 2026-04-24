@@ -10,9 +10,27 @@
   "activationEvents": ["onStartupFinished"],
   "keywords": ["omni", "mcp", "team-a", "cursor"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "omni-explorer",
+          "title": "Omni IDE",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "omni-explorer": [
+        {
+          "id": "omni-features-team-a",
+          "name": "Team A",
+          "type": "tree"
+        }
+      ]
+    },
     "commands": [
-      { "command": "omni.team-a.showInfo",  "title": "Omni: Show Extension Info" },
-      { "command": "omni.team-a.listTools", "title": "Omni: List MCP Tools"      }
+      { "command": "omni.team-a.showInfo",             "title": "Omni: Show Extension Info" },
+      { "command": "omni.team-a.feature.openMath",     "title": "Omni: Open Math Panel"      }
     ]
   },
   "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
