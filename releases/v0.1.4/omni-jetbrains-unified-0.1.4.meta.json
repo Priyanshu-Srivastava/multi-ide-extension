@@ -1,0 +1,42 @@
+{
+  "ide": "jetbrains",
+  "globalManifest": "manifests/unified-jetbrains.json",
+  "unifiedVersion": "0.1.4",
+  "builtAt": "2026-04-24T14:39:37.730Z",
+  "teamsGroupedByName": [
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ],
+  "teams": [
+    {
+      "team": "team-a",
+      "id": "omni-jetbrains-sidecar-team-a",
+      "version": "1.0.2",
+      "displayName": "Omni IDE Sidecar — Team A",
+      "defaultPort": 7654
+    },
+    {
+      "team": "team-b",
+      "id": "omni-jetbrains-sidecar-team-b",
+      "version": "1.0.2",
+      "displayName": "Omni IDE Sidecar — Team B",
+      "defaultPort": 7655
+    },
+    {
+      "team": "team-c",
+      "id": "omni-jetbrains-sidecar-team-c",
+      "version": "1.0.2",
+      "displayName": "Omni IDE Sidecar — Team C",
+      "defaultPort": 7656
+    },
+    {
+      "team": "team-d",
+      "id": "omni-jetbrains-sidecar-team-d",
+      "version": "1.0.2",
+      "displayName": "Omni IDE Sidecar — Team D",
+      "defaultPort": 7657
+    }
+  ]
+}

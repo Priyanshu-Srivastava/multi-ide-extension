@@ -1,0 +1,38 @@
+{
+  "ide": "vscode",
+  "globalManifest": "manifests/unified-vscode.json",
+  "unifiedVersion": "0.1.4",
+  "builtAt": "2026-04-24T14:39:35.523Z",
+  "teamsGroupedByName": [
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ],
+  "teams": [
+    {
+      "team": "team-a",
+      "id": "Priyanshu.omni-vscode-team-a",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team A"
+    },
+    {
+      "team": "team-b",
+      "id": "Priyanshu.omni-vscode-team-b",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team B"
+    },
+    {
+      "team": "team-c",
+      "id": "Priyanshu.omni-vscode-team-c",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team C"
+    },
+    {
+      "team": "team-d",
+      "id": "Priyanshu.omni-vscode-team-d",
+      "version": "1.0.2",
+      "displayName": "Omni IDE — Team D"
+    }
+  ]
+}
