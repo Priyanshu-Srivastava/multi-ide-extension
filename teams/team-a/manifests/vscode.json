@@ -10,6 +10,28 @@
   "activationEvents": ["onStartupFinished"],
   "keywords": ["omni", "mcp", "team-a"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "omni-explorer",
+          "title": "Omni IDE",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "omni-explorer": [
+        {
+          "id": "omni-tools",
+          "name": "MCP Tools",
+          "type": "tree"
+        },
+        {
+          "id": "omni-info",
+          "name": "Extension Info"
+        }
+      ]
+    },
     "commands": [
       { "command": "omni.team-a.showInfo",  "title": "Omni: Show Extension Info"  },
       { "command": "omni.team-a.listTools", "title": "Omni: List MCP Tools"       },

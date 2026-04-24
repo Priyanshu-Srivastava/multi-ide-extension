@@ -94,7 +94,12 @@ if (!VALID_TEAMS.includes(TEAM)) bail(`--team must be one of: ${VALID_TEAMS.join
 if (!IDE)                        bail('--ide is required');
 if (!VALID_IDES.includes(IDE))   bail(`--ide must be one of: ${VALID_IDES.join(', ')}`);
 
-// ── Paths ─────────────────────────────────────────────────────────────────────
+// ── Version Validation ────────────────────────────────────────────────────────
+try {
+  execSync(`node "${path.resolve(__dirname, 'validate-version.js')}" --team ${TEAM} --ide ${IDE}`, { stdio: 'inherit' });
+} catch (error) {
+  bail('Version validation failed. Aborting build.');
+}
 const ROOT          = path.resolve(__dirname, '..');
 const ARTIFACTS_DIR = path.resolve(ROOT, OUT_DIR || 'artifacts');
 const ADAPTER_DIR   = path.join(ROOT, 'packages', 'adapters', IDE);

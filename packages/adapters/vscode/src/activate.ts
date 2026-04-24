@@ -19,6 +19,41 @@ type TeamFeatures = { openMathPanel: (context: vscode.ExtensionContext, teamId: 
 
 let registry: MCPRegistry | undefined;
 
+class MCPToolsViewProvider implements vscode.TreeDataProvider<ToolItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ToolItem | undefined | null | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+  constructor(private registry: MCPRegistry) {}
+
+  getTreeItem(element: ToolItem): vscode.TreeItem {
+    const item = new vscode.TreeItem(element.label);
+    item.description = element.toolId;
+    item.iconPath = new vscode.ThemeIcon(element.enabled ? 'check' : 'circle-outline');
+    item.contextValue = element.toolId;
+    return item;
+  }
+
+  getChildren(): ToolItem[] {
+    return this.registry
+      .listTools()
+      .map((tool) => ({
+        label: tool.displayName,
+        toolId: tool.toolId,
+        enabled: tool.enabled,
+      }));
+  }
+
+  refresh(): void {
+    this._onDidChangeTreeData.fire(null);
+  }
+}
+
+interface ToolItem {
+  label: string;
+  toolId: string;
+  enabled: boolean;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const config = resolveConfig(context);
   registry = new MCPRegistry(config);
@@ -33,6 +68,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     new GetActiveEditorTool(),
     new GitStatusTool(),
   ].forEach((tool) => registry!.register(tool));
+
+  // Sidebar view provider
+  const toolsViewProvider = new MCPToolsViewProvider(registry);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('omni-tools', toolsViewProvider)
+  );
 
   // Status bar
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);

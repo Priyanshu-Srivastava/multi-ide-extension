@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "validate:spec": "node ./scripts/validate-spec.js",
+    "validate:versions": "node ./scripts/validate-version.js --check-all",
     "clean": "turbo run clean",
 
     "build:vscode": "node scripts/adapters/vscode/build.js",
