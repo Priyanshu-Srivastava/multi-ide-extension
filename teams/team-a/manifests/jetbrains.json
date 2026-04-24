@@ -3,6 +3,7 @@
   "displayName": "Omni IDE Sidecar — Team A",
   "description": "Omni JetBrains JSON-RPC sidecar for Team A.",
   "version": "1.0.2",
+  "publisher": "Priyanshu",
   "license": "MIT",
   "teamId": "team-a",
   "sidecar": {
