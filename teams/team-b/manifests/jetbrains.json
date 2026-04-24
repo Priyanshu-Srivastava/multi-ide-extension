@@ -1,0 +1,13 @@
+{
+  "name": "omni-jetbrains-sidecar-team-b",
+  "displayName": "Omni IDE Sidecar — Team B",
+  "description": "Omni JetBrains JSON-RPC sidecar for Team B.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "teamId": "team-b",
+  "sidecar": {
+    "main": "dist/activate.js",
+    "defaultPort": 7655,
+    "protocol": "json-rpc"
+  }
+}

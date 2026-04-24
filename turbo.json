@@ -1,0 +1,31 @@
+{
+  "pipeline": {
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    "package": {
+      "dependsOn": [
+        "build"
+      ],
+      "outputs": [
+        "../../artifacts/**"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "spec:validate": {
+      "outputs": []
+    }
+  }
+}

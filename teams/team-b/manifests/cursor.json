@@ -1,0 +1,19 @@
+{
+  "name": "omni-cursor-team-b",
+  "displayName": "Omni IDE — Team B (Cursor)",
+  "description": "Omni multi-IDE extension for Team B — Cursor build.",
+  "version": "1.0.0",
+  "publisher": "Priyanshu",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other", "AI"],
+  "activationEvents": ["onStartupFinished"],
+  "keywords": ["omni", "mcp", "team-b", "cursor"],
+  "contributes": {
+    "commands": [
+      { "command": "omni.team-b.showInfo",  "title": "Omni: Show Extension Info" },
+      { "command": "omni.team-b.listTools", "title": "Omni: List MCP Tools"      }
+    ]
+  },
+  "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
+}

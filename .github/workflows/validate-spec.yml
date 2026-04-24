@@ -1,0 +1,27 @@
+name: SpecKit Validation
+
+on:
+  push:
+    paths:
+      - 'teams/**/specs/**'
+      - 'scripts/validate-spec.js'
+  pull_request:
+    paths:
+      - 'teams/**/specs/**'
+      - 'scripts/validate-spec.js'
+
+jobs:
+  validate-specs:
+    name: Validate OpenSpec Contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run SpecKit validation
+        run: node scripts/validate-spec.js

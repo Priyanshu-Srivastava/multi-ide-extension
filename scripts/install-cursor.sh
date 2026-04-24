@@ -1,0 +1,1 @@
+cursor --install-extension dist/extension.vsix

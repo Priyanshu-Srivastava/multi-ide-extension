@@ -1,0 +1,41 @@
+{
+  "name": "omni-ide-universal",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "packages/adapters/*",
+    "teams/*",
+    "controller/*"
+  ],
+  "scripts": {
+    "bootstrap": "npm install",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "validate:spec": "node ./scripts/validate-spec.js",
+    "clean": "turbo run clean",
+
+    "build:vscode": "node scripts/adapters/vscode/build.js",
+    "deploy:vscode": "node scripts/adapters/vscode/deploy.js",
+    "install:vscode": "code --install-extension artifacts/$(ls artifacts | grep adapters-vscode | tail -1)",
+
+    "build:cursor": "node scripts/adapters/cursor/build.js",
+    "deploy:cursor": "node scripts/adapters/cursor/deploy.js",
+    "install:cursor": "cursor --install-extension artifacts/$(ls artifacts | grep adapters-cursor | tail -1)",
+
+    "build:jetbrains": "node scripts/adapters/jetbrains/build.js",
+    "deploy:jetbrains": "node scripts/adapters/jetbrains/deploy.js",
+
+    "build:all-adapters": "npm run build:vscode && npm run build:cursor && npm run build:jetbrains"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.10.0",
+    "@typescript-eslint/parser": "^6.10.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-import": "^2.29.1",
+    "turbo": "^1.12.4",
+    "typescript": "^5.6.0"
+  }
+}

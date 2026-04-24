@@ -1,0 +1,65 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": ["./tsconfig.json"],
+    "sourceType": "module"
+  },
+  "plugins": ["@typescript-eslint", "import"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "settings": {
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "overrides": [
+    {
+      "files": ["packages/core/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@omni/adapters-vscode",
+                "message": "Core cannot depend on adapter implementations. Use ports/interfaces in @omni/core instead."
+              },
+              {
+                "name": "@omni/adapters-jetbrains",
+                "message": "Core cannot depend on adapter implementations. Use ports/interfaces in @omni/core instead."
+              },
+              {
+                "name": "@omni/adapters-cursor",
+                "message": "Core cannot depend on adapter implementations. Use ports/interfaces in @omni/core instead."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["teams/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@omni/adapters-vscode",
+                "message": "Executor teams cannot depend on adapter implementations. Keep team logic isolated behind core ports."
+              },
+              {
+                "name": "@omni/adapters-jetbrains",
+                "message": "Executor teams cannot depend on adapter implementations. Keep team logic isolated behind core ports."
+              },
+              {
+                "name": "@omni/adapters-cursor",
+                "message": "Executor teams cannot depend on adapter implementations. Keep team logic isolated behind core ports."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@omni/adapters-cursor",
+  "displayName": "Omni IDE — Cursor",
+  "description": "Cursor adapter for the Omni IDE multi-IDE extension framework.",
+  "version": "1.0.0",
+  "publisher": "omni-ide",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {},
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "package": "node ../../scripts/adapters/cursor/build.js",
+    "deploy": "node ../../scripts/adapters/cursor/deploy.js",
+    "test": "echo \"No tests configured for @omni/adapters-cursor\"",
+    "lint": "eslint . --ext .ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
+  },
+  "dependencies": {
+    "@omni/core": "*",
+    "@omni/mcp": "*",
+    "@omni/adapters-vscode": "*"
+  }
+}

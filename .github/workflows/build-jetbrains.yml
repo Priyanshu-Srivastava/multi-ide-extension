@@ -1,0 +1,109 @@
+name: Build & Package — JetBrains Sidecar
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'packages/adapters/jetbrains/**'
+      - 'packages/core/**'
+      - 'packages/mcp/**'
+      - 'teams/**/manifests/jetbrains.json'
+      - 'scripts/build.js'
+  pull_request:
+    paths:
+      - 'packages/adapters/jetbrains/**'
+      - 'packages/core/**'
+      - 'teams/**'
+  workflow_dispatch:
+    inputs:
+      team:
+        description: 'Team to build (empty = all teams)'
+        required: false
+        default: ''
+        type: choice
+        options: ['', 'team-a', 'team-b', 'team-c', 'team-d']
+      publish:
+        description: 'Upload to JetBrains Marketplace?'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      channel:
+        description: 'Release channel'
+        required: false
+        default: 'Stable'
+        type: choice
+        options: ['Stable', 'Beta', 'EAP']
+
+jobs:
+  build:
+    name: Build ${{ matrix.team }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        team: [team-a, team-b, team-c, team-d]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npx turbo run lint --filter=@omni/adapters-jetbrains
+
+      - name: Build & package
+        run: node scripts/build.js --team ${{ matrix.team }} --ide jetbrains --out artifacts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetbrains-${{ matrix.team }}
+          path: artifacts/omni-jetbrains-${{ matrix.team }}-*.zip
+          retention-days: 30
+
+  deploy:
+    name: Publish ${{ matrix.team }}
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        team: [team-a, team-b, team-c, team-d]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: jetbrains-${{ matrix.team }}
+          path: artifacts
+
+      - name: Publish to JetBrains Marketplace
+        run: node scripts/deploy.js --team ${{ matrix.team }} --ide jetbrains --channel ${{ github.event.inputs.channel || 'Stable' }}
+        env:
+          JETBRAINS_TOKEN:     ${{ secrets.JETBRAINS_TOKEN }}
+          JETBRAINS_PLUGIN_ID: ${{ secrets.JETBRAINS_PLUGIN_ID }}

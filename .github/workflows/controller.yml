@@ -1,0 +1,45 @@
+name: Controller Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'controller/**'
+      - 'packages/core/**'
+      - 'packages/telemetry/**'
+      - 'scripts/validate-spec.js'
+  pull_request:
+    paths:
+      - 'controller/**'
+      - 'packages/core/**'
+      - 'packages/telemetry/**'
+      - 'scripts/validate-spec.js'
+
+jobs:
+  build-test:
+    name: Build, Lint & Validate All Specs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build affected packages
+        run: npx turbo run build --filter=@omni/controller...
+
+      - name: Lint
+        run: npx turbo run lint --filter=@omni/controller
+
+      - name: Test
+        run: npx turbo run test --filter=@omni/controller
+
+      - name: Validate all team OpenSpec contracts
+        run: node scripts/validate-spec.js

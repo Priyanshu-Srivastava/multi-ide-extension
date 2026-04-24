@@ -1,0 +1,19 @@
+{
+  "name": "omni-vscode-team-d",
+  "displayName": "Omni IDE — Team D",
+  "description": "Omni multi-IDE extension for Team D. Provides MCP tool integration and shared workspace capabilities.",
+  "version": "1.0.0",
+  "publisher": "Priyanshu",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other", "AI"],
+  "activationEvents": ["onStartupFinished"],
+  "keywords": ["omni", "mcp", "team-d"],
+  "contributes": {
+    "commands": [
+      { "command": "omni.team-d.showInfo",  "title": "Omni: Show Extension Info"  },
+      { "command": "omni.team-d.listTools", "title": "Omni: List MCP Tools"       }
+    ]
+  },
+  "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
+}

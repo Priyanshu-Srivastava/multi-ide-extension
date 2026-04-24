@@ -1,0 +1,19 @@
+{
+  "name": "omni-vscode-team-c",
+  "displayName": "Omni IDE — Team C",
+  "description": "Omni multi-IDE extension for Team C. Provides MCP tool integration and shared workspace capabilities.",
+  "version": "1.0.0",
+  "publisher": "Priyanshu",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other", "AI"],
+  "activationEvents": ["onStartupFinished"],
+  "keywords": ["omni", "mcp", "team-c"],
+  "contributes": {
+    "commands": [
+      { "command": "omni.team-c.showInfo",  "title": "Omni: Show Extension Info"  },
+      { "command": "omni.team-c.listTools", "title": "Omni: List MCP Tools"       }
+    ]
+  },
+  "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
+}

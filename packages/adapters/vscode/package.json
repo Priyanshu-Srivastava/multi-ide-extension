@@ -1,0 +1,38 @@
+{
+  "name": "@omni/adapters-vscode",
+  "displayName": "Omni IDE — VS Code",
+  "description": "VS Code adapter for the Omni IDE multi-IDE extension framework.",
+  "version": "1.0.0",
+  "publisher": "omni-ide",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "contributes": {},
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mcp-tools": {
+      "require": "./dist/mcp-tools/index.js",
+      "types": "./dist/mcp-tools/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "package": "node ../../scripts/adapters/vscode/build.js",
+    "deploy": "node ../../scripts/adapters/vscode/deploy.js",
+    "test": "echo \"No tests configured for @omni/adapters-vscode\"",
+    "lint": "eslint . --ext .ts"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
+  },
+  "dependencies": {
+    "@omni/core": "*",
+    "@omni/mcp": "*"
+  }
+}

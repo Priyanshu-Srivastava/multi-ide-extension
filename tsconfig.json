@@ -1,0 +1,18 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/mcp" },
+    { "path": "./packages/telemetry" },
+    { "path": "./packages/ui-shell" },
+    { "path": "./packages/adapters" },
+    { "path": "./packages/adapters/vscode" },
+    { "path": "./packages/adapters/jetbrains" },
+    { "path": "./packages/adapters/cursor" },
+    { "path": "./controller" },
+    { "path": "./teams/team-a" },
+    { "path": "./teams/team-b" },
+    { "path": "./teams/team-c" },
+    { "path": "./teams/team-d" }
+  ]
+}

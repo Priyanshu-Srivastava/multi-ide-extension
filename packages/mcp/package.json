@@ -1,0 +1,32 @@
+{
+  "name": "@omni/mcp",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./registry": {
+      "require": "./dist/registry/index.js",
+      "types": "./dist/registry/index.d.ts"
+    },
+    "./config": {
+      "require": "./dist/config/index.js",
+      "types": "./dist/config/index.d.ts"
+    },
+    "./tools": {
+      "require": "./dist/tools/index.js",
+      "types": "./dist/tools/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "echo \"No tests configured for @omni/mcp\"",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "@omni/core": "*"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@omni/adapters",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "echo \"No tests configured for @omni/adapters\"",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "@omni/core": "*",
+    "@omni/adapters-vscode": "*",
+    "@omni/adapters-jetbrains": "*",
+    "@omni/adapters-cursor": "*"
+  }
+}

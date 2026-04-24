@@ -1,0 +1,14 @@
+{
+  "name": "@omni/ui-shell",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "echo \"No tests configured for @omni/ui-shell\"",
+    "lint": "eslint . --ext .ts"
+  },
+  "dependencies": {
+    "@omni/core": "*"
+  }
+}
