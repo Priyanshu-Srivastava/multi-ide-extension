@@ -102,6 +102,123 @@ function zipDirectorySync(srcDir, destFile) {
   }
 }
 
+function copyDirSync(src, dest) {
+  if (!fs.existsSync(src)) {
+    return;
+  }
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcEntry = path.join(src, entry.name);
+    const destEntry = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirSync(srcEntry, destEntry);
+    } else {
+      fs.copyFileSync(srcEntry, destEntry);
+    }
+  }
+}
+
+function stageOmniPackage(pkgName, pkgDir, stagingNodeModules) {
+  const distDir = path.join(pkgDir, 'dist');
+  const packageJsonPath = path.join(pkgDir, 'package.json');
+  if (!fs.existsSync(distDir) || !fs.existsSync(packageJsonPath)) {
+    fail(`Missing build output for ${pkgName}. Run workspace build first so dist/ exists.`);
+  }
+
+  const destDir = path.join(stagingNodeModules, ...pkgName.split('/'));
+  fs.mkdirSync(destDir, { recursive: true });
+  copyDirSync(distDir, path.join(destDir, 'dist'));
+  fs.copyFileSync(packageJsonPath, path.join(destDir, 'package.json'));
+}
+
+function buildUnifiedRuntimeMain(teamRuntime) {
+  return [
+    "const vscode = require('vscode');",
+    '',
+    `const TEAM_RUNTIME = ${JSON.stringify(teamRuntime, null, 2)};`,
+    "const TEAM_FEATURES = [{ id: 'openMath', label: 'Math Panel', hasUI: true }];",
+    '',
+    'function toTeamTitle(teamId) {',
+    "  return String(teamId).replace(/-/g, ' ').replace(/\\b\\w/g, (ch) => ch.toUpperCase());",
+    '}',
+    '',
+    'class FeaturesViewProvider {',
+    '  constructor(teamId) {',
+    '    this.teamId = teamId;',
+    '  }',
+    '',
+    '  getTreeItem(element) {',
+    "    if (element.kind === 'header') {",
+    '      const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Expanded);',
+    "      item.iconPath = new vscode.ThemeIcon('organization');",
+    "      item.contextValue = 'teamHeader';",
+    '      return item;',
+    '    }',
+    '',
+    '    const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);',
+    "    item.iconPath = new vscode.ThemeIcon(element.hasUI ? 'layout-panel' : 'run');",
+    "    item.contextValue = 'feature';",
+    '    if (element.hasUI) {',
+    '      item.tooltip = `Open ${element.label}`;',
+    '      item.command = {',
+    '        command: `omni.${this.teamId}.feature.${element.featureId}`,',
+    '        title: `Open ${element.label}`',
+    '      };',
+    '    }',
+    '    return item;',
+    '  }',
+    '',
+    '  getChildren(element) {',
+    '    if (!element) {',
+    "      return [{ kind: 'header', label: toTeamTitle(this.teamId) }];",
+    '    }',
+    "    if (element.kind === 'header') {",
+    "      return TEAM_FEATURES.map((feature) => ({ kind: 'feature', label: feature.label, featureId: feature.id, hasUI: feature.hasUI }));",
+    '    }',
+    '    return [];',
+    '  }',
+    '}',
+    '',
+    'function registerTeamCommands(context, teamId) {',
+    '  let teamFeatures;',
+    '  try {',
+    '    teamFeatures = require(`@omni/${teamId}`);',
+    '  } catch (error) {',
+    '    vscode.window.showErrorMessage(`Omni Unified: failed to load @omni/${teamId}. Rebuild and reinstall the unified VSIX.`);',
+    '    return [];',
+    '  }',
+    '',
+    '  return [',
+    '    vscode.commands.registerCommand(`omni.${teamId}.showInfo`, () => {',
+    '      vscode.window.showInformationMessage(`Omni IDE - ${teamId}`);',
+    '    }),',
+    '    vscode.commands.registerCommand(`omni.${teamId}.feature.openMath`, () => {',
+    '      if (typeof teamFeatures.openMathPanel !== "function") {',
+    '        vscode.window.showErrorMessage(`Omni Unified: openMathPanel is not exported by @omni/${teamId}.`);',
+    '        return;',
+    '      }',
+    '      teamFeatures.openMathPanel(context, teamId);',
+    '    })',
+    '  ];',
+    '}',
+    '',
+    'function activate(context) {',
+    '  const disposables = [];',
+    '  for (const team of TEAM_RUNTIME) {',
+    '    disposables.push(vscode.window.registerTreeDataProvider(team.viewId, new FeaturesViewProvider(team.teamId)));',
+    '    disposables.push(...registerTeamCommands(context, team.teamId));',
+    '  }',
+    '  context.subscriptions.push(...disposables);',
+    '}',
+    '',
+    'function deactivate() {}',
+    '',
+    'exports.activate = activate;',
+    'exports.deactivate = deactivate;',
+    '',
+  ].join('\n');
+}
+
 const versionOverride = getArg('--version');
 const outDir = path.resolve(ROOT, getArg('--out') || 'artifacts');
 const ide = getArg('--ide') || 'vscode';
@@ -139,6 +256,7 @@ if (teamIds.length === 0) {
 
 const teamExtensions = [];
 const teamContributes = [];
+const teamRuntime = [];
 for (const teamId of teamIds) {
   const manifestPath = path.join(TEAMS_DIR, teamId, 'manifests', `${ide}.json`);
   if (!fs.existsSync(manifestPath)) {
@@ -161,6 +279,25 @@ for (const teamId of teamIds) {
   teamContributes.push({
     team: teamId,
     contributes: manifest.contributes || {},
+  });
+
+  const manifestViews = manifest.contributes && manifest.contributes.views && typeof manifest.contributes.views === 'object'
+    ? manifest.contributes.views
+    : {};
+  let viewId = null;
+  for (const maybeViews of Object.values(manifestViews)) {
+    if (Array.isArray(maybeViews)) {
+      const teamView = maybeViews.find((view) => view && view.id);
+      if (teamView && teamView.id) {
+        viewId = teamView.id;
+        break;
+      }
+    }
+  }
+
+  teamRuntime.push({
+    teamId,
+    viewId: viewId || `omni-features-${teamId}`,
   });
 }
 
@@ -196,6 +333,7 @@ if (ide === 'jetbrains') {
   };
 } else {
   const unifiedContributes = mergeUnifiedContributes(unifiedManifest, teamContributes);
+  const bundledDeps = ['@omni/core', ...teamIds.map((teamId) => `@omni/${teamId}`)];
   pkg = {
     name: unifiedManifest.name || `omni-${ide}-unified`,
     displayName: unifiedManifest.displayName || 'Omni IDE - Unified',
@@ -211,6 +349,8 @@ if (ide === 'jetbrains') {
     extensionPack: teamExtensions.map((t) => t.id),
     keywords: unifiedManifest.keywords || ['omni', 'unified', 'extension-pack', 'team-a', 'team-b', 'team-c', 'team-d'],
     repository: unifiedManifest.repository || { type: 'git', url: 'https://github.com/your-org/multi-ide-extension' },
+    dependencies: Object.fromEntries(bundledDeps.map((pkgName) => [pkgName, '1.0.0'])),
+    bundledDependencies: bundledDeps,
   };
 }
 
@@ -241,9 +381,30 @@ const readme = [
 
 fs.writeFileSync(path.join(stagingDir, 'package.json'), JSON.stringify(pkg, null, 2), 'utf-8');
 if (ide !== 'jetbrains') {
+  const stagingModules = path.join(stagingDir, 'node_modules');
+  stageOmniPackage('@omni/core', path.join(ROOT, 'packages', 'core'), stagingModules);
+  for (const teamId of teamIds) {
+    stageOmniPackage(`@omni/${teamId}`, path.join(ROOT, 'teams', teamId), stagingModules);
+  }
+
   fs.writeFileSync(
     path.join(stagingDir, 'main.js'),
-    "exports.activate = async function activate() {};\nexports.deactivate = function deactivate() {};\n",
+    buildUnifiedRuntimeMain(teamRuntime),
+    'utf-8',
+  );
+
+  fs.writeFileSync(
+    path.join(stagingDir, '.vscodeignore'),
+    [
+      '**/*.ts',
+      '!**/*.d.ts',
+      '**/*.map',
+      '.gitignore',
+      '.eslintrc*',
+      'tsconfig*',
+      '**/__tests__/**',
+      '!node_modules/**',
+    ].join('\n'),
     'utf-8',
   );
 }

@@ -173,10 +173,21 @@ teams/team-a/
 │   ├── cursor.json             Cursor extension manifest
 │   └── jetbrains.json          JetBrains plugin descriptor
 ├── specs/
-│   ├── openspec.json           JSON Schema describing this team's tool API contract
-│   └── BMAD_doc.md             Business/design documentation for the team's features
+│   └── <feature-slug>/
+│       ├── openspec.json       OpenSpec contract for the feature
+│       ├── spec.md             Feature specification
+│       ├── plan.md             Implementation plan
+│       ├── tasks.md            Execution task breakdown
+│       └── research.md         Technical decisions and findings
 ├── package.json                @omni/team-a workspace
 └── tsconfig.json               project reference → ../../packages/core
+```
+
+Central policy file:
+
+```
+specs/
+└── constitution.md             SpecKit constitution for all teams
 ```
 
 ---

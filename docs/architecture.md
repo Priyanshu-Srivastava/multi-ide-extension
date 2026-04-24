@@ -277,7 +277,7 @@ Health check: `GET http://127.0.0.1:7654/health`
 
 Each team is an isolated npm workspace package. Teams:
 - Implement features by calling `IDEActionPort` methods (never importing adapter code)
-- Own their API spec (`specs/openspec.json`, `specs/BMAD_doc.md`)
+- Own their API spec (`teams/<team>/specs/<feature>/openspec.json`)
 - Own their per-IDE extension manifests (`manifests/{vscode,cursor,jetbrains}.json`)
 - Are validated independently in CI via `spec:validate`
 

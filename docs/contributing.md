@@ -18,7 +18,7 @@ Welcome! This document is a quick-start guide for contributors. For the full, st
 
 ## Core Principles
 
-1.  **Spec first, code second.** Every feature starts with a spec document in your team's `specs/` folder, checked into Git, and approved via a Pull Request before implementation begins.
+1.  **Spec first, code second.** Every feature starts with specs in `teams/<team>/specs/<feature>/` and must follow the central constitution at `specs/constitution.md` before implementation begins.
 
 2.  **Stay in your lane.** Your code lives in `teams/<your-team>/src/`. You do not modify other teams' code or the core platform packages (`@omni/core`, `@omni/mcp`).
 

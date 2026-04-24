@@ -82,6 +82,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - name: Validate SpecKit constitution and team specs
+        run: node scripts/validate-spec.js
 
       - name: Resolve team credentials
         shell: bash
@@ -159,6 +161,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      - name: Validate SpecKit constitution and team specs
+        run: node scripts/validate-spec.js
 
       - name: Build unified VS Code
         if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'vscode'

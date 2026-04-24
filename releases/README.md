@@ -6,6 +6,16 @@ This directory contains released versions of the Omni IDE extension.
 
 - **v1.0.0** — Initial release (all teams, all IDEs)
 
+## GitHub Release Title Template
+
+Use the following title format for GitHub Releases:
+
+- `[Global] VS Code vX.Y.Z`
+- `[Team A] VS Code vX.Y.Z`
+- `[Team B] VS Code vX.Y.Z`
+- `[Team C] VS Code vX.Y.Z`
+- `[Team D] VS Code vX.Y.Z`
+
 ## Versioning Strategy
 
 ### Rules

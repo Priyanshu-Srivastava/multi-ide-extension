@@ -74,7 +74,7 @@ node scripts/build.js --team team-c --ide jetbrains
 | `team-c` | `@omni/team-c` | Feature set C |
 | `team-d` | `@omni/team-d` | Feature set D |
 
-Each team owns its spec (`teams/<team>/specs/openspec.json`), its feature code (`src/features/`), and its per-IDE manifest (`manifests/{vscode,cursor,jetbrains}.json`). Teams **never** import adapter packages directly — only `@omni/core` ports.
+Each team owns its specs (`teams/<team>/specs/<feature>/openspec.json` plus `spec.md`, `plan.md`, `tasks.md`, `research.md`), its feature code (`src/features/`), and its per-IDE manifest (`manifests/{vscode,cursor,jetbrains}.json`). Teams **never** import adapter packages directly — only `@omni/core` ports.
 
 ---
 

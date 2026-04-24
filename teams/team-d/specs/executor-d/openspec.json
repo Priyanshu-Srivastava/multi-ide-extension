@@ -2,6 +2,6 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "name": "@omni/team-d",
   "version": "1.0.0",
-  "description": "OpenSpec contract for Team D executor features",
+  "description": "OpenSpec contract for Team D executor feature",
   "tools": []
 }

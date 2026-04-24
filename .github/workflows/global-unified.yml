@@ -30,6 +30,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Validate SpecKit constitution and team specs
+        run: node scripts/validate-spec.js
+
       - name: Determine unified bump level
         id: bump
         shell: bash
@@ -135,11 +138,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          RELEASE_TITLE="[Global] VS Code v${{ steps.rel.outputs.version }}"
           gh release create "${{ steps.rel.outputs.tag }}" \
             "${{ steps.rel.outputs.dest }}"/*.vsix \
             "${{ steps.rel.outputs.dest }}"/*.zip \
             "${{ steps.rel.outputs.dest }}"/*.meta.json \
-            --title "Omni Unified v${{ steps.rel.outputs.version }}" \
+            --title "$RELEASE_TITLE" \
             --notes "Unified multi-IDE release from ${{ github.sha }} (bump: ${{ steps.bump.outputs.value }})." \
             --latest
 
