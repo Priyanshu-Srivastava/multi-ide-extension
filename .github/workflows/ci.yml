@@ -57,15 +57,36 @@ permissions:
 jobs:
 
   # ───────────────────────────────────────────────────────────────────────────
+  # 0 · Detect changed paths  (used by validate-specs and ci-controller)
+  # ───────────────────────────────────────────────────────────────────────────
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      specs:      ${{ steps.filter.outputs.specs }}
+      controller: ${{ steps.filter.outputs.controller }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            specs:
+              - 'teams/**'
+              - 'scripts/validate-spec.js'
+            controller:
+              - 'controller/**'
+              - 'packages/core/**'
+              - 'packages/telemetry/**'
+
+  # ───────────────────────────────────────────────────────────────────────────
   # 1 · Validate OpenSpec contracts  (only when specs or validator change)
   # ───────────────────────────────────────────────────────────────────────────
   validate-specs:
     name: Validate OpenSpec Contracts
+    needs: changes
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'teams/') ||
-      contains(toJSON(github.event.commits.*.modified), 'scripts/validate-spec.js')
+    if: needs.changes.outputs.specs == 'true' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,12 +98,9 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   ci-controller:
     name: Controller — Build, Lint & Test
+    needs: changes
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      contains(toJSON(github.event.commits.*.modified), 'controller/') ||
-      contains(toJSON(github.event.commits.*.modified), 'packages/core/') ||
-      contains(toJSON(github.event.commits.*.modified), 'packages/telemetry/')
+    if: needs.changes.outputs.controller == 'true' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
