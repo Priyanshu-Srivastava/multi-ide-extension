@@ -68,76 +68,39 @@ This diagram provides a senior-level, hierarchical view of the entire platform, 
 
 ```mermaid
 graph TD
-    subgraph "Omni Extension Platform"
+    subgraph OEP ["Omni Extension Platform"]
         direction TB
 
-        subgraph ide_hosts ["IDE Host Environments"]
+        subgraph IDEs ["IDE Host Environments"]
             direction LR
-            subgraph "VS Code / Cursor"
-                direction TB
-                A["Extension Entry Point<br>(activate.ts)"]
-                B["VSCodeIDEAdapter<br>(implements IDEActionPort)"]
-                A --> B
-            end
-
-            subgraph "JetBrains"
-                direction TB
-                C["Plugin Entry Point<br>(Kotlin/Java)"]
-                D["Node.js Sidecar Process<br>(main.ts)"]
-                E["JetBrainsSidecar Adapter<br>(implements IDEActionPort)"]
-                C -.-> D
-                D --> E
-            end
+            VSC["VS Code / Cursor"]
+            JB["JetBrains"]
         end
 
-        subgraph core_infra ["Shared Core Infrastructure"]
+        subgraph Core ["Shared Core Infrastructure"]
             direction LR
-            subgraph "@omni/core"
-                F["<b>IDEActionPort</b><br>(Interface)"]
-                G["<b>MCPToolPort</b><br>(Interface)"]
-                H["Domain Logic, Types, RPC"]
-            end
-            
-            B --> F
-            E --> F
-
-            subgraph "@omni/mcp"
-                I["<b>MCPRegistry</b><br>(Manages all tools)"]
-                J["ExternalMCPToolAdapter"]
-            end
-            
-            I -- uses --> F
+            CorePkg["@omni/core"]
+            MCPPkg["@omni/mcp"]
         end
 
-        subgraph features_and_tools ["Features & Tools"]
+        subgraph Features ["Features & Tools"]
             direction LR
-            
-            subgraph "Team-Specific Features (teams/*)"
-                K["Team A Features"]
-                L["Team B Features"]
-                M["..."]
-                K -- uses --> F
-                L -- uses --> F
-            end
-
-            subgraph "MCP Tools (packages/mcp/tools)"
-                N["Global Tools<br>(e.g., ExampleTool)"]
-                O["IDE-Specific Tools<br>(e.g., workspace-read-file)"]
-                P["External Tools<br>(via Adapter)"]
-                
-                I *-- "manages" N
-                I *-- "manages" O
-                I *-- "manages" P
-
-                N -- uses --> F
-                O -- uses --> F
-            end
+            Teams["Team-Specific Features"]
+            MCPTools["MCP Tools"]
         end
     end
 
-    style F fill:#B2EBF2,stroke:#00796B,stroke-width:2px
-    style G fill:#B2EBF2,stroke:#00796B,stroke-width:2px
-    style I fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px
+    %% Define connections
+    VSC --> CorePkg
+    JB --> CorePkg
+    MCPPkg -- uses --> CorePkg
+    Teams -- uses --> CorePkg
+    MCPTools -- uses --> CorePkg
+    MCPPkg -- manages --> MCPTools
+
+    %% Style
+    style CorePkg fill:#B2EBF2,stroke:#00796B,stroke-width:2px
+    style MCPPkg fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px
 ```
 
 ### Low-Level Class Diagram (VS Code Adapter)
