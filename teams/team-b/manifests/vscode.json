@@ -2,7 +2,7 @@
   "name": "omni-vscode-team-b",
   "displayName": "Omni IDE — Team B",
   "description": "Omni multi-IDE extension for Team B. Provides MCP tool integration and shared workspace capabilities.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
@@ -10,10 +10,27 @@
   "activationEvents": ["onStartupFinished"],
   "keywords": ["omni", "mcp", "team-b"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "omni-explorer",
+          "title": "Omni IDE",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "omni-explorer": [
+        {
+          "id": "omni-features-team-b",
+          "name": "Team B",
+          "type": "tree"
+        }
+      ]
+    },
     "commands": [
-      { "command": "omni.team-b.showInfo",  "title": "Omni: Show Extension Info"  },
-      { "command": "omni.team-b.listTools", "title": "Omni: List MCP Tools"       },
-      { "command": "omni.team-b.openMath", "title": "Omni: Open Math Panel"      }
+      { "command": "omni.team-b.showInfo",             "title": "Omni: Show Extension Info" },
+      { "command": "omni.team-b.feature.openMath",     "title": "Omni: Open Math Panel"      }
     ]
   },
   "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }

@@ -19,39 +19,61 @@ type TeamFeatures = { openMathPanel: (context: vscode.ExtensionContext, teamId: 
 
 let registry: MCPRegistry | undefined;
 
-class MCPToolsViewProvider implements vscode.TreeDataProvider<ToolItem> {
-  private _onDidChangeTreeData = new vscode.EventEmitter<ToolItem | undefined | null | void>();
-  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+// ---------------------------------------------------------------------------
+// Feature descriptors — add an entry here whenever a team ships a new feature.
+// hasUI: true  → clicking the item opens the feature's webview panel.
+// hasUI: false → clicking runs a background command with no visual panel.
+// ---------------------------------------------------------------------------
+const TEAM_FEATURES: Array<{ id: string; label: string; hasUI: boolean }> = [
+  { id: 'openMath', label: 'Math Panel', hasUI: true },
+];
 
-  constructor(private registry: MCPRegistry) {}
+interface FeatureNode {
+  kind: 'header' | 'feature';
+  label: string;
+  featureId?: string;
+  hasUI?: boolean;
+}
 
-  getTreeItem(element: ToolItem): vscode.TreeItem {
-    const item = new vscode.TreeItem(element.label);
-    item.description = element.toolId;
-    item.iconPath = new vscode.ThemeIcon(element.enabled ? 'check' : 'circle-outline');
-    item.contextValue = element.toolId;
+class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
+  getTreeItem(element: FeatureNode): vscode.TreeItem {
+    if (element.kind === 'header') {
+      const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Expanded);
+      item.iconPath    = new vscode.ThemeIcon('organization');
+      item.contextValue = 'teamHeader';
+      return item;
+    }
+
+    // feature row
+    const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+    item.iconPath    = new vscode.ThemeIcon(element.hasUI ? 'layout-panel' : 'run');
+    item.contextValue = 'feature';
+    if (element.hasUI) {
+      item.tooltip = `Open ${element.label}`;
+      item.command = {
+        command: `omni.${TEAM_ID}.feature.${element.featureId}`,
+        title:   `Open ${element.label}`,
+      };
+    }
     return item;
   }
 
-  getChildren(): ToolItem[] {
-    return this.registry
-      .listTools()
-      .map((tool) => ({
-        label: tool.displayName,
-        toolId: tool.toolId,
-        enabled: tool.enabled,
+  getChildren(element?: FeatureNode): FeatureNode[] {
+    if (!element) {
+      // Root: single team-name header
+      const teamLabel = TEAM_ID.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      return [{ kind: 'header', label: teamLabel }];
+    }
+    if (element.kind === 'header') {
+      return TEAM_FEATURES.map((f) => ({
+        kind:      'feature' as const,
+        label:     f.label,
+        featureId: f.id,
+        hasUI:     f.hasUI,
       }));
+    }
+    return [];
   }
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire(null);
-  }
-}
-
-interface ToolItem {
-  label: string;
-  toolId: string;
-  enabled: boolean;
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -69,48 +91,30 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     new GitStatusTool(),
   ].forEach((tool) => registry!.register(tool));
 
-  // Sidebar view provider
-  const toolsViewProvider = new MCPToolsViewProvider(registry);
+  // Sidebar — one Features view per team to avoid conflicts across installed extensions.
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider('omni-tools', toolsViewProvider)
+    vscode.window.registerTreeDataProvider(`omni-features-${TEAM_ID}`, new FeaturesViewProvider()),
   );
 
   // Status bar
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-  statusBar.text = `$(plug) Omni [${TEAM_ID}]`;
+  statusBar.text    = `$(plug) Omni [${TEAM_ID}]`;
   statusBar.tooltip = `Omni IDE Extension — Team: ${TEAM_ID}`;
   statusBar.command = `omni.${TEAM_ID}.showInfo`;
   statusBar.show();
   context.subscriptions.push(statusBar);
 
-  // Commands
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const teamFeatures = require(`@omni/${TEAM_ID}`) as TeamFeatures;
 
   context.subscriptions.push(
+    // Status-bar info command
     vscode.commands.registerCommand(`omni.${TEAM_ID}.showInfo`, () => {
-      const toolList = registry!
-        .listTools()
-        .map((t) => `${t.enabled ? '✓' : '✗'}  ${t.toolId}`)
-        .join('\n');
-      vscode.window.showInformationMessage(
-        `Omni IDE [${TEAM_ID}]\n\nRegistered MCP tools:\n${toolList}`
-      );
+      vscode.window.showInformationMessage(`Omni IDE — ${TEAM_ID}`);
     }),
 
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.listTools`, () => {
-      const items = registry!.listTools().map((t) => ({
-        label:       t.displayName,
-        description: t.toolId,
-        detail:      t.enabled ? '● Enabled' : '○ Disabled',
-      }));
-      vscode.window.showQuickPick(items, {
-        title:       `Omni MCP Tools — ${TEAM_ID}`,
-        matchOnDetail: true,
-      });
-    }),
-
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.openMath`, () => {
+    // Feature commands — one per TEAM_FEATURES entry
+    vscode.commands.registerCommand(`omni.${TEAM_ID}.feature.openMath`, () => {
       teamFeatures.openMathPanel(context, TEAM_ID);
     }),
   );
