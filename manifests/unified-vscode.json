@@ -2,7 +2,7 @@
   "name": "omni-vscode-unified",
   "displayName": "Omni IDE - Unified",
   "description": "Single global Omni VS Code extension pack with team features grouped by team names.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": {

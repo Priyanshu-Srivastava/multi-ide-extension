@@ -2,7 +2,7 @@
   "name": "omni-cursor-unified",
   "displayName": "Omni IDE - Unified (Cursor)",
   "description": "Single global Omni Cursor extension pack with team features grouped by team names.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": {

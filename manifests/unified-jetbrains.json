@@ -2,7 +2,7 @@
   "name": "omni-jetbrains-unified",
   "displayName": "Omni IDE - Unified (JetBrains)",
   "description": "Single global Omni JetBrains sidecar bundle with team features grouped by team names.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "Priyanshu",
   "license": "MIT",
   "keywords": [

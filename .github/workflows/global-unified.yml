@@ -55,6 +55,14 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node scripts/bump-unified-version.js --bump '${{ steps.bump.outputs.value }}')
+
+          # If the computed version was already released/tagged, keep bumping patch
+          # until we find the next available unified release version.
+          while [[ -d "releases/v${VERSION}" ]] || git tag --list "unified-v${VERSION}-*" | grep -q .; do
+            echo "Version v${VERSION} already exists; bumping patch to find next free unified version."
+            VERSION=$(node scripts/bump-unified-version.js --bump patch)
+          done
+
           echo "value=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Validate global version is unreleased
