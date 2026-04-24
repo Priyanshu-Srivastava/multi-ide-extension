@@ -1,0 +1,154 @@
+# ============================================================================
+# release.yml — Build all artifacts and manage releases by branch.
+#
+# BRANCHES:
+#   main      → final release:   artifacts committed to releases/<version>/
+#                                in the repository + a GitHub Release created.
+#   any other → prerelease/CI:   artifacts uploaded as GHA workflow artifacts
+#                                (accessible from the Actions UI, expire in 14d).
+#
+# ARTIFACTS produced per run:
+#   omni-vscode-team-a-<v>.vsix   omni-vscode-team-b-<v>.vsix
+#   omni-cursor-team-a-<v>.vsix   omni-cursor-team-b-<v>.vsix
+#   omni-jetbrains-team-a-<v>.zip omni-jetbrains-team-b-<v>.zip
+# ============================================================================
+name: Build & Release
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: write   # required: git push to releases/ + gh release create
+
+# ---------------------------------------------------------------------------
+# Job 1 — build matrix (runs on every branch / PR)
+# ---------------------------------------------------------------------------
+jobs:
+  build:
+    name: "${{ matrix.ide }} / ${{ matrix.team }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        team: [team-a, team-b]
+        ide:  [vscode, cursor, jetbrains]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build & Package
+        run: node scripts/build.js --team ${{ matrix.team }} --ide ${{ matrix.ide }} --out artifacts
+
+      # ── Upload as GHA artifact (available for all branches / PRs) ──────────
+      # On non-main branches these ARE the "prerelease" artifacts.
+      - name: Upload CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-${{ matrix.ide }}-${{ matrix.team }}
+          path: |
+            artifacts/omni-${{ matrix.ide }}-${{ matrix.team }}-*.vsix
+            artifacts/omni-${{ matrix.ide }}-${{ matrix.team }}-*.zip
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — GitHub Release + commit to releases/ (main branch only)
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository (with write token)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: _downloads
+          merge-multiple: true
+
+      - name: Read version & compute tag
+        id: ver
+        run: |
+          VERSION=$(node -p "require('./teams/team-a/manifests/vscode.json').version")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "version=$VERSION"        >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}-${SHORT_SHA}"  >> $GITHUB_OUTPUT
+          echo "dest=releases/v${VERSION}"     >> $GITHUB_OUTPUT
+
+      - name: Copy artifacts into releases/<version>/
+        run: |
+          mkdir -p "${{ steps.ver.outputs.dest }}"
+          find _downloads -type f \( -name "*.vsix" -o -name "*.zip" \) \
+            -exec cp {} "${{ steps.ver.outputs.dest }}/" \;
+          echo "── Contents of ${{ steps.ver.outputs.dest }} ──"
+          ls -lh "${{ steps.ver.outputs.dest }}"
+
+      - name: Commit releases/ folder to repository
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add releases/
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+          else
+            git commit -m "release: v${{ steps.ver.outputs.version }} [skip ci]"
+            git push
+          fi
+
+      - name: Create GitHub Release with all artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NOTES=$(cat <<'EOF'
+          Automated release built from `main` (commit: `${{ github.sha }}`).
+
+          ### Install
+
+          ```bash
+          # VS Code
+          code   --install-extension omni-vscode-team-a-*.vsix
+          code   --install-extension omni-vscode-team-b-*.vsix
+
+          # Cursor
+          cursor --install-extension omni-cursor-team-a-*.vsix
+          cursor --install-extension omni-cursor-team-b-*.vsix
+
+          # JetBrains (unzip then run the sidecar)
+          unzip omni-jetbrains-team-a-*.zip -d omni-team-a && node omni-team-a/dist/activate.js
+          unzip omni-jetbrains-team-b-*.zip -d omni-team-b && node omni-team-b/dist/activate.js
+          ```
+
+          ### Artifacts
+
+          | Team   | VS Code | Cursor | JetBrains |
+          |--------|---------|--------|-----------|
+          | team-a | `omni-vscode-team-a-*.vsix` | `omni-cursor-team-a-*.vsix` | `omni-jetbrains-team-a-*.zip` |
+          | team-b | `omni-vscode-team-b-*.vsix` | `omni-cursor-team-b-*.vsix` | `omni-jetbrains-team-b-*.zip` |
+          EOF
+          )
+
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            "${{ steps.ver.outputs.dest }}"/*.vsix \
+            "${{ steps.ver.outputs.dest }}"/*.zip \
+            --title "Omni IDE v${{ steps.ver.outputs.version }}" \
+            --notes "$NOTES" \
+            --latest

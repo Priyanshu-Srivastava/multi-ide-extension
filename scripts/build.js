@@ -175,12 +175,19 @@ if (fs.existsSync(mcpConfigSrc)) {
   fs.copyFileSync(mcpConfigSrc, path.join(STAGING_DIR, 'mcp.config.json'));
 }
 
+// Copy LICENSE file (required by vsce)
+const licenseSrc = path.join(ROOT, 'LICENSE');
+if (fs.existsSync(licenseSrc)) {
+  fs.copyFileSync(licenseSrc, path.join(STAGING_DIR, 'LICENSE'));
+}
+
 // ── Step 4: Stage @omni packages as node_modules ─────────────────────────────
 step('Staging @omni runtime packages into node_modules...');
 const stagingModules = path.join(STAGING_DIR, 'node_modules');
 
-stageOmniPackage('@omni/core', path.join(ROOT, 'packages', 'core'),     stagingModules);
-stageOmniPackage('@omni/mcp',  path.join(ROOT, 'packages', 'mcp'),      stagingModules);
+stageOmniPackage('@omni/core',  path.join(ROOT, 'packages', 'core'),  stagingModules);
+stageOmniPackage('@omni/mcp',   path.join(ROOT, 'packages', 'mcp'),   stagingModules);
+stageOmniPackage(`@omni/${TEAM}`, TEAM_DIR,                            stagingModules);
 
 if (IDE === 'cursor') {
   stageOmniPackage('@omni/adapters-vscode', path.join(ROOT, 'packages', 'adapters', 'vscode'), stagingModules);
@@ -191,24 +198,26 @@ step('Writing extension package.json...');
 let extensionPkg;
 
 if (IDE === 'vscode' || IDE === 'cursor') {
+  const BUNDLED_DEPS = ['@omni/core', '@omni/mcp', `@omni/${TEAM}`];
   extensionPkg = {
-    name:             manifest.name,
-    displayName:      manifest.displayName,
-    description:      manifest.description,
-    version:          VERSION,
-    publisher:        manifest.publisher,
-    license:          manifest.license || 'MIT',
-    engines:          manifest.engines || { vscode: '^1.80.0' },
-    categories:       manifest.categories || ['Other'],
-    activationEvents: manifest.activationEvents || ['onStartupFinished'],
-    main:             './dist/activate.js',
-    contributes:      manifest.contributes || {},
-    keywords:         manifest.keywords || [],
-    repository:       manifest.repository || {},
-    // vsce requires empty scripts/devDeps in the packaged manifest
-    scripts:          {},
-    devDependencies:  {},
-    dependencies:     {},
+    name:               manifest.name,
+    displayName:        manifest.displayName,
+    description:        manifest.description,
+    version:            VERSION,
+    publisher:          manifest.publisher,
+    license:            manifest.license || 'MIT',
+    engines:            manifest.engines || { vscode: '^1.80.0' },
+    categories:         manifest.categories || ['Other'],
+    activationEvents:   manifest.activationEvents || ['onStartupFinished'],
+    main:               './dist/activate.js',
+    contributes:        manifest.contributes || {},
+    keywords:           manifest.keywords || [],
+    repository:         manifest.repository || {},
+    scripts:            {},
+    devDependencies:    {},
+    // Declare bundled deps so vsce includes them from staged node_modules
+    dependencies:       Object.fromEntries(BUNDLED_DEPS.map(p => [p, '1.0.0'])),
+    bundledDependencies: BUNDLED_DEPS,
   };
 } else {
   // JetBrains — plain Node.js package descriptor
@@ -235,6 +244,7 @@ if (IDE === 'vscode' || IDE === 'cursor') {
     '.eslintrc*',
     'tsconfig*',
     '**/__tests__/**',
+    '!node_modules/**',   // include manually-staged runtime deps (@omni/core, @omni/mcp, @omni/<team>)
   ].join('\n');
   fs.writeFileSync(path.join(STAGING_DIR, '.vscodeignore'), vscodeignore, 'utf-8');
 }
@@ -246,7 +256,10 @@ fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 if (IDE === 'vscode' || IDE === 'cursor') {
   const vsixName = `omni-${IDE}-${TEAM}-${VERSION}.vsix`;
   const vsixPath = path.join(ARTIFACTS_DIR, vsixName);
-  run(`npx @vscode/vsce package --no-dependencies --out "${vsixPath}"`, STAGING_DIR);
+  const vsceCmd  = path.join(ROOT, 'node_modules', '.bin', 'vsce');
+  // No --no-dependencies: vsce reads bundledDependencies from package.json
+  // and includes the staged node_modules in the VSIX.
+  run(`"${vsceCmd}" package --out "${vsixPath}"`, STAGING_DIR);
 
   const installer = IDE === 'cursor' ? 'cursor' : 'code';
   step('Done!');

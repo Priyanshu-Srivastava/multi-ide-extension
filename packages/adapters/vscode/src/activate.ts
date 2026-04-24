@@ -15,6 +15,8 @@ import {
 } from './mcp-tools';
 import { TEAM_ID } from './__generated__/team-config';
 
+type TeamFeatures = { openMathPanel: (context: vscode.ExtensionContext, teamId: string) => void };
+
 let registry: MCPRegistry | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -41,6 +43,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(statusBar);
 
   // Commands
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const teamFeatures = require(`@omni/${TEAM_ID}`) as TeamFeatures;
+
   context.subscriptions.push(
     vscode.commands.registerCommand(`omni.${TEAM_ID}.showInfo`, () => {
       const toolList = registry!
@@ -62,6 +67,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         title:       `Omni MCP Tools — ${TEAM_ID}`,
         matchOnDetail: true,
       });
+    }),
+
+    vscode.commands.registerCommand(`omni.${TEAM_ID}.openMath`, () => {
+      teamFeatures.openMathPanel(context, TEAM_ID);
     }),
   );
 }

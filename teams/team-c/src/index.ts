@@ -1,4 +1,4 @@
 /**
  * @omni/team-c public API
  */
-export { executeTeamCFeature } from './features';
+export { executeTeamCFeature, openMathPanel } from './features';

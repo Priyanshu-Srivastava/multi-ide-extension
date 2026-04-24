@@ -11,5 +11,8 @@
   },
   "dependencies": {
     "@omni/core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0"
   }
 }

@@ -12,7 +12,8 @@
   "contributes": {
     "commands": [
       { "command": "omni.team-b.showInfo",  "title": "Omni: Show Extension Info"  },
-      { "command": "omni.team-b.listTools", "title": "Omni: List MCP Tools"       }
+      { "command": "omni.team-b.listTools", "title": "Omni: List MCP Tools"       },
+      { "command": "omni.team-b.openMath", "title": "Omni: Open Math Panel"      }
     ]
   },
   "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
