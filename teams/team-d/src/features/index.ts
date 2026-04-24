@@ -1,6 +1,6 @@
 import { IDEActionPort, TelemetryPort } from '@omni/core';
 
-export function executeTeamDFeature(port: IDEActionPort, telemetry: TelemetryPort) {
+export function executeTeamDFeature(port: IDEActionPort, _telemetry: TelemetryPort) {
   return port.executeCommand('team-d:run', { feature: 'executor-d' });
 }
 
