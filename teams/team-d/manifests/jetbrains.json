@@ -2,7 +2,7 @@
   "name": "omni-jetbrains-sidecar-team-d",
   "displayName": "Omni IDE Sidecar — Team D",
   "description": "Omni JetBrains JSON-RPC sidecar for Team D.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "teamId": "team-d",
   "sidecar": {

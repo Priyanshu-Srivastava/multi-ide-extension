@@ -2,7 +2,7 @@
   "name": "omni-vscode-team-c",
   "displayName": "Omni IDE — Team C",
   "description": "Omni multi-IDE extension for Team C. Provides MCP tool integration and shared workspace capabilities.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
