@@ -62,6 +62,152 @@ graph TD;
     style G fill:#ccf,stroke:#333,stroke-width:2px
 ```
 
+### Detailed Hierarchical Architecture
+
+This diagram provides a senior-level, hierarchical view of the entire platform, showing how components are nested and how they interact across layers.
+
+```mermaid
+graph TD
+    subgraph "Omni Extension Platform"
+        direction TB
+
+        subgraph ide_hosts ["IDE Host Environments"]
+            direction LR
+            subgraph "VS Code / Cursor"
+                direction TB
+                A["Extension Entry Point<br>(activate.ts)"]
+                B["VSCodeIDEAdapter<br>(implements IDEActionPort)"]
+                A --> B
+            end
+
+            subgraph "JetBrains"
+                direction TB
+                C["Plugin Entry Point<br>(Kotlin/Java)"]
+                D["Node.js Sidecar Process<br>(main.ts)"]
+                E["JetBrainsSidecar Adapter<br>(implements IDEActionPort)"]
+                C -.-> D
+                D --> E
+            end
+        end
+
+        subgraph core_infra ["Shared Core Infrastructure"]
+            direction LR
+            subgraph "@omni/core"
+                F["<b>IDEActionPort</b><br>(Interface)"]
+                G["<b>MCPToolPort</b><br>(Interface)"]
+                H["Domain Logic, Types, RPC"]
+            end
+            
+            B --> F
+            E --> F
+
+            subgraph "@omni/mcp"
+                I["<b>MCPRegistry</b><br>(Manages all tools)"]
+                J["ExternalMCPToolAdapter"]
+            end
+            
+            I -- uses --> F
+        end
+
+        subgraph features_and_tools ["Features & Tools"]
+            direction LR
+            
+            subgraph "Team-Specific Features (teams/*)"
+                K["Team A Features"]
+                L["Team B Features"]
+                M["..."]
+                K -- uses --> F
+                L -- uses --> F
+            end
+
+            subgraph "MCP Tools (packages/mcp/tools)"
+                N["Global Tools<br>(e.g., ExampleTool)"]
+                O["IDE-Specific Tools<br>(e.g., workspace-read-file)"]
+                P["External Tools<br>(via Adapter)"]
+                
+                I *-- "manages" N
+                I *-- "manages" O
+                I *-- "manages" P
+
+                N -- uses --> F
+                O -- uses --> F
+            end
+        end
+    end
+
+    style F fill:#B2EBF2,stroke:#00796B,stroke-width:2px
+    style G fill:#B2EBF2,stroke:#00796B,stroke-width:2px
+    style I fill:#FFCDD2,stroke:#D32F2F,stroke-width:2px
+```
+
+### Low-Level Class Diagram (VS Code Adapter)
+
+This diagram details the key classes and interfaces within the VS Code adapter, showing how the `activate` function wires together the `VSCodeIDEAdapter`, `MCPRegistry`, and the individual MCP tools.
+
+```mermaid
+classDiagram
+    direction LR
+
+    class activate {
+        <<function>>
+        +context: ExtensionContext
+    }
+
+    class VSCodeIDEAdapter {
+        <<Adapter>>
+        +workspace: WorkspacePort
+        +window: WindowPort
+        +commands: CommandsPort
+        +...
+        +getDiagnostics(uri): Diagnostic[]
+        +executeCommand(id, ...args): Promise~any~
+    }
+
+    class IDEActionPort {
+        <<Interface>>
+        +workspace: WorkspacePort
+        +window: WindowPort
+        +commands: CommandsPort
+        +getDiagnostics(uri)
+        +executeCommand(id, args)
+    }
+
+    class MCPRegistry {
+        <<Registry>>
+        -config: MCPConfig
+        -ide: IDEActionPort
+        -tools: Map~string, MCPToolPort~
+        +initialize(): void
+        +listTools(): MCPToolPort[]
+        +getTool(id): MCPToolPort
+    }
+
+    class WorkspaceReadFileTool {
+        <<MCP Tool>>
+        +id: "workspace.readFile"
+        -ide: IDEActionPort
+        +action(input): Promise~MCPToolResult~
+    }
+    
+    class MCPToolPort {
+        <<Interface>>
+        +id: string
+        +schema: object
+        +action(input): Promise~MCPToolResult~
+    }
+
+    activate --|> VSCodeIDEAdapter : creates
+    activate --|> MCPRegistry : creates
+    
+    VSCodeIDEAdapter ..|> IDEActionPort : implements
+    
+    MCPRegistry o-- IDEActionPort : uses
+    MCPRegistry "1" *-- "many" MCPToolPort : creates & manages
+    
+    WorkspaceReadFileTool ..|> MCPToolPort : implements
+    WorkspaceReadFileTool o-- IDEAction-Port : uses
+```
+
 ### MCP Tool Execution Sequence
 
 This diagram illustrates how a user request to an MCP tool flows through the system, from the IDE to the core logic and back.
