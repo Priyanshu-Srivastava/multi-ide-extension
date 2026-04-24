@@ -1,0 +1,198 @@
+name: Publish Manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: What to publish
+        required: true
+        type: choice
+        default: team
+        options: [team, unified]
+      team:
+        description: Team to publish (required for team scope)
+        required: false
+        type: choice
+        default: ''
+        options: ['', team-a, team-b, team-c, team-d]
+      ide:
+        description: IDE target
+        required: true
+        type: choice
+        default: all
+        options: [all, vscode, cursor, jetbrains]
+      pre_release:
+        description: Pre-release for VS Code publish
+        required: false
+        type: boolean
+        default: false
+      jetbrains_channel:
+        description: JetBrains channel
+        required: false
+        type: choice
+        default: Stable
+        options: [Stable, Beta, EAP]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-inputs:
+    name: Validate Inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate workflow inputs
+        shell: bash
+        run: |
+          if [[ '${{ github.event.inputs.scope }}' == 'team' && -z '${{ github.event.inputs.team }}' ]]; then
+            echo 'team input is required when scope=team' >&2
+            exit 1
+          fi
+
+  publish-team:
+    name: Publish Team - ${{ github.event.inputs.team }}
+    needs: validate-inputs
+    if: github.event.inputs.scope == 'team'
+    runs-on: ubuntu-latest
+    env:
+      IDE: ${{ github.event.inputs.ide }}
+      TEAM: ${{ github.event.inputs.team }}
+      PRE_RELEASE: ${{ github.event.inputs.pre_release }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel }}
+      VSCE_PAT_TEAM_A: ${{ secrets.VSCE_PAT_TEAM_A }}
+      VSCE_PAT_TEAM_B: ${{ secrets.VSCE_PAT_TEAM_B }}
+      VSCE_PAT_TEAM_C: ${{ secrets.VSCE_PAT_TEAM_C }}
+      VSCE_PAT_TEAM_D: ${{ secrets.VSCE_PAT_TEAM_D }}
+      OVSX_PAT_TEAM_A: ${{ secrets.OVSX_PAT_TEAM_A }}
+      OVSX_PAT_TEAM_B: ${{ secrets.OVSX_PAT_TEAM_B }}
+      OVSX_PAT_TEAM_C: ${{ secrets.OVSX_PAT_TEAM_C }}
+      OVSX_PAT_TEAM_D: ${{ secrets.OVSX_PAT_TEAM_D }}
+      JETBRAINS_TOKEN_TEAM_A: ${{ secrets.JETBRAINS_TOKEN_TEAM_A }}
+      JETBRAINS_TOKEN_TEAM_B: ${{ secrets.JETBRAINS_TOKEN_TEAM_B }}
+      JETBRAINS_TOKEN_TEAM_C: ${{ secrets.JETBRAINS_TOKEN_TEAM_C }}
+      JETBRAINS_TOKEN_TEAM_D: ${{ secrets.JETBRAINS_TOKEN_TEAM_D }}
+      JETBRAINS_PLUGIN_ID_TEAM_A: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_A }}
+      JETBRAINS_PLUGIN_ID_TEAM_B: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_B }}
+      JETBRAINS_PLUGIN_ID_TEAM_C: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_C }}
+      JETBRAINS_PLUGIN_ID_TEAM_D: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_D }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve team credentials
+        shell: bash
+        run: |
+          case "$TEAM" in
+            team-a)
+              echo "VSCE_TOKEN=$VSCE_PAT_TEAM_A" >> $GITHUB_ENV
+              echo "OVSX_TOKEN=$OVSX_PAT_TEAM_A" >> $GITHUB_ENV
+              echo "JETBRAINS_TOKEN=$JETBRAINS_TOKEN_TEAM_A" >> $GITHUB_ENV
+              echo "JETBRAINS_PLUGIN_ID=$JETBRAINS_PLUGIN_ID_TEAM_A" >> $GITHUB_ENV
+              ;;
+            team-b)
+              echo "VSCE_TOKEN=$VSCE_PAT_TEAM_B" >> $GITHUB_ENV
+              echo "OVSX_TOKEN=$OVSX_PAT_TEAM_B" >> $GITHUB_ENV
+              echo "JETBRAINS_TOKEN=$JETBRAINS_TOKEN_TEAM_B" >> $GITHUB_ENV
+              echo "JETBRAINS_PLUGIN_ID=$JETBRAINS_PLUGIN_ID_TEAM_B" >> $GITHUB_ENV
+              ;;
+            team-c)
+              echo "VSCE_TOKEN=$VSCE_PAT_TEAM_C" >> $GITHUB_ENV
+              echo "OVSX_TOKEN=$OVSX_PAT_TEAM_C" >> $GITHUB_ENV
+              echo "JETBRAINS_TOKEN=$JETBRAINS_TOKEN_TEAM_C" >> $GITHUB_ENV
+              echo "JETBRAINS_PLUGIN_ID=$JETBRAINS_PLUGIN_ID_TEAM_C" >> $GITHUB_ENV
+              ;;
+            team-d)
+              echo "VSCE_TOKEN=$VSCE_PAT_TEAM_D" >> $GITHUB_ENV
+              echo "OVSX_TOKEN=$OVSX_PAT_TEAM_D" >> $GITHUB_ENV
+              echo "JETBRAINS_TOKEN=$JETBRAINS_TOKEN_TEAM_D" >> $GITHUB_ENV
+              echo "JETBRAINS_PLUGIN_ID=$JETBRAINS_PLUGIN_ID_TEAM_D" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Unsupported team: $TEAM" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Publish VS Code
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'vscode'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide vscode --out artifacts
+          PRE=''
+          if [[ "$PRE_RELEASE" == 'true' ]]; then PRE='--pre-release'; fi
+          node scripts/deploy.js --team "$TEAM" --ide vscode $PRE
+
+      - name: Publish Cursor
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'cursor'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide cursor --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide cursor
+
+      - name: Publish JetBrains
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'jetbrains'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide jetbrains --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide jetbrains --channel "$JB_CHANNEL"
+
+  publish-unified:
+    name: Publish Unified
+    needs: validate-inputs
+    if: github.event.inputs.scope == 'unified'
+    runs-on: ubuntu-latest
+    env:
+      IDE: ${{ github.event.inputs.ide }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel }}
+      VSCE_PAT_UNIFIED: ${{ secrets.VSCE_PAT_UNIFIED }}
+      OVSX_PAT_UNIFIED: ${{ secrets.OVSX_PAT_UNIFIED }}
+      JETBRAINS_TOKEN_UNIFIED: ${{ secrets.JETBRAINS_TOKEN_UNIFIED }}
+      JETBRAINS_PLUGIN_ID_UNIFIED: ${{ secrets.JETBRAINS_PLUGIN_ID_UNIFIED }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+
+      - name: Build unified VS Code
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'vscode'
+        run: node scripts/build-unified-vscode.js --ide vscode --out artifacts
+
+      - name: Publish unified VS Code
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'vscode'
+        shell: bash
+        run: |
+          FILE=$(ls artifacts/omni-vscode-unified-*.vsix | tail -n 1)
+          npx @vscode/vsce publish --no-dependencies --pat "$VSCE_PAT_UNIFIED" "$FILE"
+
+      - name: Build unified Cursor
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'cursor'
+        run: node scripts/build-unified-vscode.js --ide cursor --out artifacts
+
+      - name: Publish unified Cursor
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'cursor'
+        shell: bash
+        run: |
+          FILE=$(ls artifacts/omni-cursor-unified-*.vsix | tail -n 1)
+          npx ovsx publish "$FILE" -p "$OVSX_PAT_UNIFIED"
+
+      - name: Build unified JetBrains
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'jetbrains'
+        run: node scripts/build-unified-vscode.js --ide jetbrains --out artifacts
+
+      - name: Publish unified JetBrains
+        if: github.event.inputs.ide == 'all' || github.event.inputs.ide == 'jetbrains'
+        shell: bash
+        run: |
+          FILE=$(ls artifacts/omni-jetbrains-unified-*.zip | tail -n 1)
+          curl --fail --silent --show-error \
+            -F "file=@${FILE}" \
+            -F "channel=${JB_CHANNEL}" \
+            -H "Authorization: Bearer ${JETBRAINS_TOKEN_UNIFIED}" \
+            "https://plugins.jetbrains.com/plugin/uploadPlugin?pluginId=${JETBRAINS_PLUGIN_ID_UNIFIED}"

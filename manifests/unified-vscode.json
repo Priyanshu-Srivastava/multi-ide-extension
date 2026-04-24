@@ -1,0 +1,34 @@
+{
+  "name": "omni-vscode-unified",
+  "displayName": "Omni IDE - Unified",
+  "description": "Single global Omni VS Code extension pack with team features grouped by team names.",
+  "version": "0.1.0",
+  "publisher": "Priyanshu",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "AI"
+  ],
+  "keywords": [
+    "omni",
+    "unified",
+    "extension-pack",
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/multi-ide-extension"
+  },
+  "teams": [
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ]
+}

@@ -27,6 +27,14 @@
     "build:jetbrains": "node scripts/adapters/jetbrains/build.js",
     "deploy:jetbrains": "node scripts/adapters/jetbrains/deploy.js",
 
+    "build:unified:vscode": "node scripts/build-unified-vscode.js --ide vscode --out artifacts",
+    "build:unified:cursor": "node scripts/build-unified-vscode.js --ide cursor --out artifacts",
+    "build:unified:jetbrains": "node scripts/build-unified-vscode.js --ide jetbrains --out artifacts",
+    "build:unified:all": "npm run build:unified:vscode && npm run build:unified:cursor && npm run build:unified:jetbrains",
+    "bump:unified:patch": "node scripts/bump-unified-version.js --bump patch",
+    "bump:unified:minor": "node scripts/bump-unified-version.js --bump minor",
+    "bump:unified:major": "node scripts/bump-unified-version.js --bump major",
+
     "build:all-adapters": "npm run build:vscode && npm run build:cursor && npm run build:jetbrains"
   },
   "devDependencies": {

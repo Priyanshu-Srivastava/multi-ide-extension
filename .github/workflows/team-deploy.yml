@@ -1,0 +1,241 @@
+name: Team Path-Filtered Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'teams/**'
+      - 'packages/core/**'
+      - 'packages/mcp/**'
+      - 'packages/adapters/**'
+      - 'scripts/build.js'
+      - 'scripts/deploy.js'
+      - 'scripts/validate-version.js'
+  workflow_dispatch:
+    inputs:
+      team:
+        description: Optional single team to deploy (leave empty for path-based/all)
+        required: false
+        default: ''
+        type: choice
+        options: ['', 'team-a', 'team-b', 'team-c', 'team-d']
+      ide:
+        description: IDE target
+        required: true
+        default: all
+        type: choice
+        options: [all, vscode, cursor, jetbrains]
+      pre_release:
+        description: Pre-release for VS Code publish
+        required: false
+        default: false
+        type: boolean
+      jetbrains_channel:
+        description: JetBrains channel
+        required: false
+        default: Stable
+        type: choice
+        options: [Stable, Beta, EAP]
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect Team Changes
+    runs-on: ubuntu-latest
+    outputs:
+      shared: ${{ steps.filter.outputs.shared }}
+      team_a: ${{ steps.filter.outputs.team_a }}
+      team_b: ${{ steps.filter.outputs.team_b }}
+      team_c: ${{ steps.filter.outputs.team_c }}
+      team_d: ${{ steps.filter.outputs.team_d }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'packages/core/**'
+              - 'packages/mcp/**'
+              - 'packages/adapters/**'
+              - 'scripts/build.js'
+              - 'scripts/deploy.js'
+              - 'scripts/validate-version.js'
+            team_a:
+              - 'teams/team-a/**'
+            team_b:
+              - 'teams/team-b/**'
+            team_c:
+              - 'teams/team-c/**'
+            team_d:
+              - 'teams/team-d/**'
+
+  deploy-team-a:
+    name: Deploy team-a
+    needs: changes
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && (needs.changes.outputs.shared == 'true' || needs.changes.outputs.team_a == 'true')) ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.team == '' || github.event.inputs.team == 'team-a'))
+    env:
+      TEAM: team-a
+      IDE: ${{ github.event.inputs.ide || 'all' }}
+      PRE_RELEASE: ${{ github.event.inputs.pre_release || 'false' }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel || 'Stable' }}
+      VSCE_TOKEN: ${{ secrets.VSCE_PAT_TEAM_A }}
+      OVSX_TOKEN: ${{ secrets.OVSX_PAT_TEAM_A }}
+      JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN_TEAM_A }}
+      JETBRAINS_PLUGIN_ID: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_A }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Deploy VS Code
+        if: env.IDE == 'all' || env.IDE == 'vscode'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide vscode --out artifacts
+          PRE=''
+          if [[ "$PRE_RELEASE" == 'true' ]]; then PRE='--pre-release'; fi
+          node scripts/deploy.js --team "$TEAM" --ide vscode $PRE
+      - name: Deploy Cursor
+        if: env.IDE == 'all' || env.IDE == 'cursor'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide cursor --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide cursor
+      - name: Deploy JetBrains
+        if: env.IDE == 'all' || env.IDE == 'jetbrains'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide jetbrains --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide jetbrains --channel "$JB_CHANNEL"
+
+  deploy-team-b:
+    name: Deploy team-b
+    needs: changes
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && (needs.changes.outputs.shared == 'true' || needs.changes.outputs.team_b == 'true')) ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.team == '' || github.event.inputs.team == 'team-b'))
+    env:
+      TEAM: team-b
+      IDE: ${{ github.event.inputs.ide || 'all' }}
+      PRE_RELEASE: ${{ github.event.inputs.pre_release || 'false' }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel || 'Stable' }}
+      VSCE_TOKEN: ${{ secrets.VSCE_PAT_TEAM_B }}
+      OVSX_TOKEN: ${{ secrets.OVSX_PAT_TEAM_B }}
+      JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN_TEAM_B }}
+      JETBRAINS_PLUGIN_ID: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_B }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Deploy VS Code
+        if: env.IDE == 'all' || env.IDE == 'vscode'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide vscode --out artifacts
+          PRE=''
+          if [[ "$PRE_RELEASE" == 'true' ]]; then PRE='--pre-release'; fi
+          node scripts/deploy.js --team "$TEAM" --ide vscode $PRE
+      - name: Deploy Cursor
+        if: env.IDE == 'all' || env.IDE == 'cursor'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide cursor --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide cursor
+      - name: Deploy JetBrains
+        if: env.IDE == 'all' || env.IDE == 'jetbrains'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide jetbrains --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide jetbrains --channel "$JB_CHANNEL"
+
+  deploy-team-c:
+    name: Deploy team-c
+    needs: changes
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && (needs.changes.outputs.shared == 'true' || needs.changes.outputs.team_c == 'true')) ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.team == '' || github.event.inputs.team == 'team-c'))
+    env:
+      TEAM: team-c
+      IDE: ${{ github.event.inputs.ide || 'all' }}
+      PRE_RELEASE: ${{ github.event.inputs.pre_release || 'false' }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel || 'Stable' }}
+      VSCE_TOKEN: ${{ secrets.VSCE_PAT_TEAM_C }}
+      OVSX_TOKEN: ${{ secrets.OVSX_PAT_TEAM_C }}
+      JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN_TEAM_C }}
+      JETBRAINS_PLUGIN_ID: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_C }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Deploy VS Code
+        if: env.IDE == 'all' || env.IDE == 'vscode'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide vscode --out artifacts
+          PRE=''
+          if [[ "$PRE_RELEASE" == 'true' ]]; then PRE='--pre-release'; fi
+          node scripts/deploy.js --team "$TEAM" --ide vscode $PRE
+      - name: Deploy Cursor
+        if: env.IDE == 'all' || env.IDE == 'cursor'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide cursor --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide cursor
+      - name: Deploy JetBrains
+        if: env.IDE == 'all' || env.IDE == 'jetbrains'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide jetbrains --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide jetbrains --channel "$JB_CHANNEL"
+
+  deploy-team-d:
+    name: Deploy team-d
+    needs: changes
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && (needs.changes.outputs.shared == 'true' || needs.changes.outputs.team_d == 'true')) ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.team == '' || github.event.inputs.team == 'team-d'))
+    env:
+      TEAM: team-d
+      IDE: ${{ github.event.inputs.ide || 'all' }}
+      PRE_RELEASE: ${{ github.event.inputs.pre_release || 'false' }}
+      JB_CHANNEL: ${{ github.event.inputs.jetbrains_channel || 'Stable' }}
+      VSCE_TOKEN: ${{ secrets.VSCE_PAT_TEAM_D }}
+      OVSX_TOKEN: ${{ secrets.OVSX_PAT_TEAM_D }}
+      JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_TOKEN_TEAM_D }}
+      JETBRAINS_PLUGIN_ID: ${{ secrets.JETBRAINS_PLUGIN_ID_TEAM_D }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Deploy VS Code
+        if: env.IDE == 'all' || env.IDE == 'vscode'
+        shell: bash
+        run: |
+          node scripts/build.js --team "$TEAM" --ide vscode --out artifacts
+          PRE=''
+          if [[ "$PRE_RELEASE" == 'true' ]]; then PRE='--pre-release'; fi
+          node scripts/deploy.js --team "$TEAM" --ide vscode $PRE
+      - name: Deploy Cursor
+        if: env.IDE == 'all' || env.IDE == 'cursor'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide cursor --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide cursor
+      - name: Deploy JetBrains
+        if: env.IDE == 'all' || env.IDE == 'jetbrains'
+        run: |
+          node scripts/build.js --team "$TEAM" --ide jetbrains --out artifacts
+          node scripts/deploy.js --team "$TEAM" --ide jetbrains --channel "$JB_CHANNEL"

@@ -1,0 +1,147 @@
+name: Team Dynamic Artifacts
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      team:
+        description: Optional single team to build
+        required: false
+        default: ''
+        type: choice
+        options: ['', 'team-a', 'team-b', 'team-c', 'team-d']
+
+permissions:
+  contents: read
+
+jobs:
+  detect-teams:
+    name: Detect Changed Teams
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+      team_matrix: ${{ steps.detect.outputs.team_matrix }}
+      artifact_matrix: ${{ steps.detect.outputs.artifact_matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute dynamic team matrix
+        id: detect
+        shell: bash
+        run: |
+          ALL_TEAMS=(team-a team-b team-c team-d)
+          IDES=(vscode cursor jetbrains)
+          SHARED_PATTERN='^(packages/core/|packages/mcp/|packages/adapters/|scripts/build.js|scripts/deploy.js|scripts/validate-version.js)'
+
+          CHANGED=()
+
+          if [[ '${{ github.event_name }}' == 'workflow_dispatch' ]]; then
+            if [[ -n '${{ github.event.inputs.team }}' ]]; then
+              CHANGED=('${{ github.event.inputs.team }}')
+            else
+              CHANGED=("${ALL_TEAMS[@]}")
+            fi
+          else
+            BASE=''
+            HEAD='${{ github.sha }}'
+
+            if [[ '${{ github.event_name }}' == 'pull_request' ]]; then
+              BASE='${{ github.event.pull_request.base.sha }}'
+              HEAD='${{ github.event.pull_request.head.sha }}'
+            else
+              BASE='${{ github.event.before }}'
+            fi
+
+            FILES=$(git diff --name-only "$BASE" "$HEAD" || true)
+
+            if echo "$FILES" | grep -Eq "$SHARED_PATTERN"; then
+              CHANGED=("${ALL_TEAMS[@]}")
+            else
+              for TEAM in "${ALL_TEAMS[@]}"; do
+                if echo "$FILES" | grep -Eq "^teams/${TEAM}/"; then
+                  CHANGED+=("$TEAM")
+                fi
+              done
+            fi
+          fi
+
+          if [[ ${#CHANGED[@]} -eq 0 ]]; then
+            echo 'has_changes=false' >> $GITHUB_OUTPUT
+            echo 'team_matrix=[]' >> $GITHUB_OUTPUT
+            echo 'artifact_matrix=[]' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          TEAM_JSON='['
+          for TEAM in "${CHANGED[@]}"; do
+            TEAM_JSON+="{\"team\":\"${TEAM}\"},"
+          done
+          TEAM_JSON="${TEAM_JSON%,}]"
+
+          ART_JSON='['
+          for TEAM in "${CHANGED[@]}"; do
+            for IDE in "${IDES[@]}"; do
+              ART_JSON+="{\"team\":\"${TEAM}\",\"ide\":\"${IDE}\"},"
+            done
+          done
+          ART_JSON="${ART_JSON%,}]"
+
+          echo 'has_changes=true' >> $GITHUB_OUTPUT
+          echo "team_matrix=$TEAM_JSON" >> $GITHUB_OUTPUT
+          echo "artifact_matrix=$ART_JSON" >> $GITHUB_OUTPUT
+
+  ci-team:
+    name: Team CI - ${{ matrix.team }}
+    needs: detect-teams
+    if: needs.detect-teams.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.detect-teams.outputs.team_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npx turbo run build --filter=@omni/${{ matrix.team }}...
+      - name: Lint
+        run: npx turbo run lint --filter=@omni/${{ matrix.team }}
+      - name: Test
+        run: npx turbo run test --filter=@omni/${{ matrix.team }}
+      - name: Validate specs
+        run: node scripts/validate-spec.js
+
+  build-team-artifacts:
+    name: Build Artifact - ${{ matrix.team }} / ${{ matrix.ide }}
+    needs: [detect-teams, ci-team]
+    if: needs.detect-teams.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.detect-teams.outputs.artifact_matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Build and package
+        run: node scripts/build.js --team ${{ matrix.team }} --ide ${{ matrix.ide }} --out artifacts
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-${{ matrix.ide }}-${{ matrix.team }}
+          path: |
+            artifacts/omni-${{ matrix.ide }}-${{ matrix.team }}-*.vsix
+            artifacts/omni-${{ matrix.ide }}-${{ matrix.team }}-*.zip
+          retention-days: 14

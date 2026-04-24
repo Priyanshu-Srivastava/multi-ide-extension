@@ -1,0 +1,137 @@
+name: Global Unified Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_bump:
+        description: Unified release bump level
+        required: false
+        default: auto
+        type: choice
+        options: [auto, patch, minor, major]
+
+permissions:
+  contents: write
+
+jobs:
+  unified-release:
+    name: Build and Release Unified Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Determine unified bump level
+        id: bump
+        shell: bash
+        run: |
+          REQUESTED='${{ github.event.inputs.release_bump }}'
+          if [[ -n "$REQUESTED" && "$REQUESTED" != "auto" ]]; then
+            BUMP="$REQUESTED"
+          else
+            RANGE="HEAD~50..HEAD"
+            MSGS=$(git log --format=%B $RANGE || true)
+            if echo "$MSGS" | grep -Eiq 'BREAKING CHANGE|\[major\]|#major'; then
+              BUMP="major"
+            elif echo "$MSGS" | grep -Eiq '\[minor\]|#minor'; then
+              BUMP="minor"
+            else
+              BUMP="patch"
+            fi
+          fi
+          echo "value=$BUMP" >> $GITHUB_OUTPUT
+
+      - name: Bump global unified version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node scripts/bump-unified-version.js --bump '${{ steps.bump.outputs.value }}')
+          echo "value=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate global version is unreleased
+        shell: bash
+        run: |
+          VERSION='${{ steps.version.outputs.value }}'
+
+          if [[ -d "releases/v${VERSION}" ]]; then
+            echo "Global version v${VERSION} already exists in releases/." >&2
+            exit 1
+          fi
+
+          if git tag --list "unified-v${VERSION}-*" | grep -q .; then
+            echo "Global version v${VERSION} already has a unified release tag." >&2
+            exit 1
+          fi
+
+      - name: Build unified VS Code artifact
+        run: node scripts/build-unified-vscode.js --ide vscode --out artifacts
+
+      - name: Build unified Cursor artifact
+        run: node scripts/build-unified-vscode.js --ide cursor --out artifacts
+
+      - name: Build unified JetBrains artifact
+        run: node scripts/build-unified-vscode.js --ide jetbrains --out artifacts
+
+      - name: Upload unified artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: omni-unified
+          path: |
+            artifacts/omni-vscode-unified-*.vsix
+            artifacts/omni-cursor-unified-*.vsix
+            artifacts/omni-jetbrains-unified-*.zip
+            artifacts/omni-vscode-unified-*.meta.json
+            artifacts/omni-cursor-unified-*.meta.json
+            artifacts/omni-jetbrains-unified-*.meta.json
+          retention-days: 14
+
+      - name: Commit release assets and bumped manifests
+        id: rel
+        shell: bash
+        run: |
+          VERSION='${{ steps.version.outputs.value }}'
+          DEST="releases/v${VERSION}"
+          TAG="unified-v${VERSION}-${GITHUB_SHA::7}"
+
+          mkdir -p "$DEST"
+          cp artifacts/omni-vscode-unified-${VERSION}.vsix "$DEST/"
+          cp artifacts/omni-cursor-unified-${VERSION}.vsix "$DEST/"
+          cp artifacts/omni-jetbrains-unified-${VERSION}.zip "$DEST/"
+          cp artifacts/omni-vscode-unified-${VERSION}.meta.json "$DEST/"
+          cp artifacts/omni-cursor-unified-${VERSION}.meta.json "$DEST/"
+          cp artifacts/omni-jetbrains-unified-${VERSION}.meta.json "$DEST/"
+
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add releases/ manifests/unified-vscode.json manifests/unified-cursor.json manifests/unified-jetbrains.json
+          git stash
+          git pull --rebase
+          git stash pop
+          git diff --cached --quiet || git commit -m "release: unified v${VERSION} [skip ci]"
+          git push
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "dest=$DEST" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.rel.outputs.tag }}" \
+            "${{ steps.rel.outputs.dest }}"/*.vsix \
+            "${{ steps.rel.outputs.dest }}"/*.zip \
+            "${{ steps.rel.outputs.dest }}"/*.meta.json \
+            --title "Omni Unified v${{ steps.rel.outputs.version }}" \
+            --notes "Unified multi-IDE release from ${{ github.sha }} (bump: ${{ steps.bump.outputs.value }})." \
+            --latest
+

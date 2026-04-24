@@ -1,0 +1,27 @@
+{
+  "name": "omni-jetbrains-unified",
+  "displayName": "Omni IDE - Unified (JetBrains)",
+  "description": "Single global Omni JetBrains sidecar bundle with team features grouped by team names.",
+  "version": "0.1.0",
+  "publisher": "Priyanshu",
+  "license": "MIT",
+  "keywords": [
+    "omni",
+    "unified",
+    "jetbrains",
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/multi-ide-extension"
+  },
+  "teams": [
+    "team-a",
+    "team-b",
+    "team-c",
+    "team-d"
+  ]
+}
