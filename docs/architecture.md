@@ -25,25 +25,25 @@ All dependencies point **inward** — toward `@omni/core`. The outer layers (ada
 
 ```mermaid
 graph TD;
-    subgraph User Interface
-        A[VS Code / Cursor / JetBrains IDE]
+    subgraph "User Interface"
+        A["VS Code / Cursor / JetBrains IDE"]
     end
 
-    subgraph IDE Adapters
+    subgraph "IDE Adapters"
         direction LR
-        B[VS Code Adapter <br> (@omni/adapters/vscode)]
-        C[Cursor Adapter <br> (@omni/adapters/cursor)]
-        D[JetBrains Adapter <br> (@omni/adapters/jetbrains)]
+        B["VS Code Adapter <br> (@omni/adapters/vscode)"]
+        C["Cursor Adapter <br> (@omni/adapters/cursor)"]
+        D["JetBrains Adapter <br> (@omni/adapters/jetbrains)"]
     end
 
-    subgraph Core Logic
-        E[@omni/core]
+    subgraph "Core Logic"
+        E["@omni/core"]
     end
     
-    subgraph MCP Tools
+    subgraph "MCP Tools"
         direction LR
-        F[Global MCP Tools <br> (@omni/mcp/tools)]
-        G[VS Code Specific <br> MCP Tools]
+        F["Global MCP Tools <br> (@omni/mcp/tools)"]
+        G["VS Code Specific <br> MCP Tools"]
     end
 
     A --> B;

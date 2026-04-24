@@ -94,18 +94,18 @@ This flowchart shows the steps executed by the `scripts/build.js` script to crea
 
 ```mermaid
 graph TD
-    A[Start Build] --> B{Parse --team and --ide args};
-    B --> C{Load team manifest<br>`teams/[team]/manifests/[ide].json`};
-    C --> D[Clean `dist` and `out` folders];
-    D --> E[Generate `__generated__/team-config.ts`<br>with TEAM_ID];
-    E --> F[Run `tsc` to compile TypeScript];
-    F --> G{Package Extension};
-    G --> H_VS[VS Code/Cursor: <br>Copy `package.json`, `node_modules`<br>Run `vsce package`];
-    G --> I_JB[JetBrains: <br>Copy `package.json`, `node_modules`<br>Create `zip` archive];
-    H_VS --> J[Create .vsix file];
-    I_JB --> K[Create .zip file];
-    J --> L[End];
-    K --> L[End];
+    A["Start Build"] --> B{"Parse --team and --ide args"};
+    B --> C{"Load team manifest<br>`teams/[team]/manifests/[ide].json`"};
+    C --> D["Clean `dist` and `out` folders"];
+    D --> E["Generate `__generated__/team-config.ts`<br>with TEAM_ID"];
+    E --> F["Run `tsc` to compile TypeScript"];
+    F --> G{"Package Extension"};
+    G --> H_VS["VS Code/Cursor: <br>Copy `package.json`, `node_modules`<br>Run `vsce package`"];
+    G --> I_JB["JetBrains: <br>Copy `package.json`, `node_modules`<br>Create `zip` archive"];
+    H_VS --> J["Create .vsix file"];
+    I_JB --> K["Create .zip file"];
+    J --> L["End"];
+    K --> L["End"];
 
     subgraph "Build Script (`scripts/build.js`)"
         B
