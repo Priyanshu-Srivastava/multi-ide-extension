@@ -24,6 +24,31 @@ function run(cmd, cwd) {
   execSync(cmd, { cwd: cwd || ROOT, stdio: 'inherit' });
 }
 
+function hasBuildOutput(pkgDir) {
+  return fs.existsSync(path.join(pkgDir, 'dist'));
+}
+
+function ensureRequiredBuildOutputs(teamIds) {
+  const required = [
+    { name: '@omni/core', dir: path.join(ROOT, 'packages', 'core') },
+    ...teamIds.map((teamId) => ({ name: `@omni/${teamId}`, dir: path.join(ROOT, 'teams', teamId) })),
+  ];
+
+  const missing = required.filter((entry) => !hasBuildOutput(entry.dir));
+  if (missing.length === 0) {
+    return;
+  }
+
+  console.log(`\n[build-unified] Missing dist output for: ${missing.map((entry) => entry.name).join(', ')}`);
+  console.log('[build-unified] Running workspace build (npm run build) to generate required outputs...');
+  run('npm run build', ROOT);
+
+  const stillMissing = required.filter((entry) => !hasBuildOutput(entry.dir));
+  if (stillMissing.length > 0) {
+    fail(`Missing build output after workspace build for: ${stillMissing.map((entry) => entry.name).join(', ')}`);
+  }
+}
+
 function toTeamTitle(teamId) {
   return String(teamId)
     .replace(/-/g, ' ')
@@ -303,6 +328,10 @@ for (const teamId of teamIds) {
 
 if (teamExtensions.length === 0) {
   fail(`No team ${ide} manifests found to assemble extension pack`);
+}
+
+if (ide !== 'jetbrains') {
+  ensureRequiredBuildOutputs(teamIds);
 }
 
 const publisher = ide === 'jetbrains'
