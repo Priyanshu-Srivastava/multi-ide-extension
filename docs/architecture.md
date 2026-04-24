@@ -19,47 +19,76 @@ All dependencies point **inward** — toward `@omni/core`. The outer layers (ada
 
 ---
 
-## Architecture Diagram
+## Architecture Diagrams
 
+### High-Level Overview
+
+```mermaid
+graph TD;
+    subgraph User Interface
+        A[VS Code / Cursor / JetBrains IDE]
+    end
+
+    subgraph IDE Adapters
+        direction LR
+        B[VS Code Adapter <br> (@omni/adapters/vscode)]
+        C[Cursor Adapter <br> (@omni/adapters/cursor)]
+        D[JetBrains Adapter <br> (@omni/adapters/jetbrains)]
+    end
+
+    subgraph Core Logic
+        E[@omni/core]
+    end
+    
+    subgraph MCP Tools
+        direction LR
+        F[Global MCP Tools <br> (@omni/mcp/tools)]
+        G[VS Code Specific <br> MCP Tools]
+    end
+
+    A --> B;
+    A --> C;
+    A --> D;
+
+    B --> E;
+    C --> E;
+    D --> E;
+
+    E --> F;
+    B --> G
+
+    style E fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#ccf,stroke:#333,stroke-width:2px
+    style G fill:#ccf,stroke:#333,stroke-width:2px
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            Extension Host / Runtime                          │
-│                                                                             │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                   │
-│  │   VS Code    │   │    Cursor    │   │  JetBrains   │                   │
-│  │   Adapter    │   │   Adapter    │   │  Sidecar     │                   │
-│  │ (packages/   │   │ (packages/   │   │ (packages/   │                   │
-│  │ adapters/    │   │ adapters/    │   │ adapters/    │                   │
-│  │ vscode)      │   │ cursor)      │   │ jetbrains)   │                   │
-│  └──────┬───────┘   └──────┬───────┘   └──────┬───────┘                   │
-│         │                  │                  │                             │
-│         └──────────────────┴──────────────────┘                             │
-│                            │ implements                                      │
-│                  ┌─────────▼──────────┐                                     │
-│                  │   @omni/core        │  ← Ports, Domain, RPC, Types       │
-│                  │   (Port Interfaces) │                                     │
-│                  └─────────┬──────────┘                                     │
-│                            │ consumed by                                     │
-│         ┌──────────────────┼──────────────────┐                             │
-│         ▼                  ▼                  ▼                             │
-│  ┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────────┐        │
-│  │  team-a    │   │  team-b    │   │  team-c    │   │  team-d    │        │
-│  │ (features) │   │ (features) │   │ (features) │   │ (features) │        │
-│  └────────────┘   └────────────┘   └────────────┘   └────────────┘        │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────┐       │
-│  │                       @omni/mcp                                  │       │
-│  │   MCPRegistry ─ global tool registry, config-driven on/off      │       │
-│  │   ExternalMCPToolAdapter ─ wraps remote MCP servers (JSON-RPC)  │       │
-│  │   tools/vscode/* ─ 8 built-in VS Code API tools                 │       │
-│  └─────────────────────────────────────────────────────────────────┘       │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────┐       │
-│  │                     controller/                                  │       │
-│  │   governance-api ─ MetricsEvent ingestion via TelemetryPort     │       │
-│  │   dashboard      ─ DashboardData aggregation                    │       │
-│  └─────────────────────────────────────────────────────────────────┘       │
-└─────────────────────────────────────────────────────────────────────────────┘
+
+### MCP Tool Execution Sequence
+
+This diagram illustrates how a user request to an MCP tool flows through the system, from the IDE to the core logic and back.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant IDE_Adapter as @omni/adapters/vscode
+    participant Core as @omni/core
+    participant MCP_Tool as @omni/mcp/tools/workspace-read-file
+    participant VSCode_API as VS Code API
+
+    User->>IDE_Adapter: Asks to read 'test.txt'
+    IDE_Adapter->>Core: mcpRegistry.listTools()
+    Core-->>IDE_Adapter: Returns [workspace-read-file, ...]
+    
+    IDE_Adapter->>MCP_Tool: action({ path: 'test.txt' })
+    
+    Note over MCP_Tool, VSCode_API: The tool's action is implemented<br/>to call the IDEPort provided<br/>during its initialization.
+    
+    MCP_Tool->>IDE_Adapter: ide.workspace.readFile('test.txt')
+    IDE_Adapter->>VSCode_API: vscode.workspace.fs.readFile(...)
+    VSCode_API-->>IDE_Adapter: File content
+    IDE_Adapter-->>MCP_Tool: File content
+    
+    MCP_Tool-->>IDE_Adapter: { success: true, content: '...' }
+    IDE_Adapter-->>User: Displays file content
 ```
 
 ---

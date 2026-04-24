@@ -88,16 +88,43 @@ npm run build:all-adapters   # (add --team manually to each)
 
 ---
 
-## What the Build Script Does
+## Build Process Flowchart
 
+This flowchart shows the steps executed by the `scripts/build.js` script to create a team-specific and IDE-specific artifact.
+
+```mermaid
+graph TD
+    A[Start Build] --> B{Parse --team and --ide args};
+    B --> C{Load team manifest<br>`teams/[team]/manifests/[ide].json`};
+    C --> D[Clean `dist` and `out` folders];
+    D --> E[Generate `__generated__/team-config.ts`<br>with TEAM_ID];
+    E --> F[Run `tsc` to compile TypeScript];
+    F --> G{Package Extension};
+    G --> H_VS[VS Code/Cursor: <br>Copy `package.json`, `node_modules`<br>Run `vsce package`];
+    G --> I_JB[JetBrains: <br>Copy `package.json`, `node_modules`<br>Create `zip` archive];
+    H_VS --> J[Create .vsix file];
+    I_JB --> K[Create .zip file];
+    J --> L[End];
+    K --> L[End];
+
+    subgraph "Build Script (`scripts/build.js`)"
+        B
+        C
+        D
+        E
+        F
+        G
+        H_VS
+        I_JB
+    end
+
+    style H_VS fill:#cde, stroke:#333
+    style I_JB fill:#cde, stroke:#333
 ```
-1.  Validate --team and --ide arguments
-2.  Create artifacts/ output directory
-3.  Resolve team manifest: teams/<team>/manifests/<ide>.json
-4.  Write __generated__/team-config.ts with TEAM_ID constant
-5.  Compile @omni/core (tsc -b packages/core)
-6.  Compile target adapter (tsc -b packages/adapters/<ide>)
-7.  Stage node_modules into dist/
+
+---
+
+## Local Build
 8.  Write final extension manifest (package.json for vscode/cursor, plugin.xml for jetbrains)
 9.  Package artifact:
       vscode/cursor  → npx @vscode/vsce package → .vsix
