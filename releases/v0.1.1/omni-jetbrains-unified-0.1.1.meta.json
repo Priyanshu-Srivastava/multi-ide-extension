@@ -1,7 +1,7 @@
 {
   "ide": "jetbrains",
   "globalManifest": "manifests/unified-jetbrains.json",
-  "unifiedVersion": "0.1.1",
+  "unifiedVersion": "0.1.2",
   "builtAt": "2026-04-24T12:33:53.127Z",
   "teamsGroupedByName": [
     "team-a",

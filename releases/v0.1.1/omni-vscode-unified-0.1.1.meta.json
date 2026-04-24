@@ -1,7 +1,7 @@
 {
   "ide": "vscode",
   "globalManifest": "manifests/unified-vscode.json",
-  "unifiedVersion": "0.1.1",
+  "unifiedVersion": "0.1.2",
   "builtAt": "2026-04-24T12:33:51.087Z",
   "teamsGroupedByName": [
     "team-a",
