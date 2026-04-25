@@ -5,12 +5,14 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
-    "test": "echo \"No tests configured for @omni/team-d\"",
+    "test": "npm run build && node --test dist/tests/project-analyser/project-analysis-service.test.js dist/tests/project-analyser/ipc-contract.test.js dist/tests/project-analyser/report-validation.test.js",
+    "benchmark:project-analyser": "npm run build && node dist/tests/project-analyser/performance-benchmark.js",
     "lint": "eslint . --ext .ts",
     "spec:validate": "node ../../scripts/validate-spec.js"
   },
   "dependencies": {
-    "@omni/core": "*"
+    "@omni/core": "*",
+    "@omni/adapters-vscode": "*"
   },
   "devDependencies": {
     "@types/vscode": "^1.80.0"

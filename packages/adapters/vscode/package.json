@@ -7,7 +7,34 @@
   "engines": { "vscode": "^1.80.0" },
   "categories": ["Other"],
   "activationEvents": ["onStartupFinished"],
-  "contributes": {},
+  "contributes": {
+    "configuration": {
+      "title": "Omni IDE — AI Provider",
+      "properties": {
+        "omni.llm.provider": {
+          "type": "string",
+          "default": "copilot",
+          "markdownDescription": "LLM provider for all Omni AI features. Built-in values: `copilot`, `claude`. Any registered provider ID is accepted — new providers are available immediately after the adapter registers them without requiring a settings schema change.",
+          "examples": ["copilot", "claude", "grok"]
+        },
+        "omni.llm.apiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "API key for providers that require one (e.g. `claude`, `grok`). **Not needed for `copilot`** — it uses IDE authentication. For production use, prefer storing the key in VS Code Secret Storage instead."
+        },
+        "omni.llm.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model override for the selected provider. Leave blank to use each provider's default model. Examples: `gpt-4o`, `claude-3-5-sonnet-20241022`, `grok-2`."
+        },
+        "omni.llm.providerOptions": {
+          "type": "object",
+          "default": {},
+          "markdownDescription": "Additional provider-specific options passed as-is to the LLM adapter. Consult each provider adapter's documentation for supported keys."
+        }
+      }
+    }
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {

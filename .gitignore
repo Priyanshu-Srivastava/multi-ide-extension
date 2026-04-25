@@ -1,5 +1,6 @@
 node_modules/
 dist/
+build/
 *.tsbuildinfo
 .turbo/
 .env
@@ -7,7 +8,12 @@ dist/
 !.env.example
 *.log
 npm-debug.log*
+coverage/
 artifacts/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
 
 # Copilot memory files (local/session state)
 memory/

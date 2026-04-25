@@ -5,3 +5,4 @@ export function executeTeamDFeature(port: IDEActionPort, _telemetry: TelemetryPo
 }
 
 export { openMathPanel } from './math-panel';
+export { openAnalysisPanel } from './project-analyser';

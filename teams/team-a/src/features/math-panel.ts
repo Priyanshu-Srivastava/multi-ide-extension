@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import type { WebviewRequest, WebviewResponse } from '@omni/core';
 
 let mathPanel: vscode.WebviewPanel | undefined;
 
@@ -18,20 +19,25 @@ export function openMathPanel(context: vscode.ExtensionContext, teamId: string):
   mathPanel.webview.html = getMathHtml(teamId);
 
   mathPanel.webview.onDidReceiveMessage(
-    (msg: { command: string; a: number; b: number; op: string }) => {
-      if (msg.command !== 'calculate') { return; }
-      const { a, b, op } = msg;
-      let result: number | string;
+    (msg: WebviewRequest<{ a: number; b: number; op: string }>) => {
+      if (msg.jsonrpc !== '2.0' || msg.method !== 'calculate' || !msg.params) { return; }
+      const { a, b, op } = msg.params;
+      let value: number | string;
       switch (op) {
-        case '+': result = a + b;                                        break;
-        case '-': result = a - b;                                        break;
-        case '*': result = a * b;                                        break;
-        case '/': result = b === 0 ? 'Error: Division by zero' : a / b; break;
-        case '%': result = b === 0 ? 'Error: Division by zero' : a % b; break;
-        case '^': result = Math.pow(a, b);                               break;
-        default:  result = 'Unknown operation';
+        case '+': value = a + b;                                        break;
+        case '-': value = a - b;                                        break;
+        case '*': value = a * b;                                        break;
+        case '/': value = b === 0 ? 'Error: Division by zero' : a / b; break;
+        case '%': value = b === 0 ? 'Error: Division by zero' : a % b; break;
+        case '^': value = Math.pow(a, b);                               break;
+        default:  value = 'Unknown operation';
       }
-      mathPanel!.webview.postMessage({ command: 'result', value: result });
+
+      const isError = typeof value === 'string' && value.startsWith('Error');
+      const response: WebviewResponse<{ value: number | string }> = isError
+        ? { jsonrpc: '2.0', id: msg.id, error: { code: -32000, message: value as string } }
+        : { jsonrpc: '2.0', id: msg.id, result: { value } };
+      mathPanel!.webview.postMessage(response);
     },
     undefined,
     context.subscriptions
@@ -177,7 +183,12 @@ function getMathHtml(teamId: string): string {
   const vscode  = acquireVsCodeApi();
   const opLabel = { '+': '＋', '-': '−', '*': '×', '/': '÷', '%': 'mod', '^': '^' };
   let lastOp = null;
+  let _reqId = 0;
   const history = [];
+
+  function sendCalculate(a, b, op) {
+    vscode.postMessage({ jsonrpc: '2.0', id: ++_reqId, method: 'calculate', params: { a, b, op } });
+  }
 
   document.querySelectorAll('.ops button').forEach(btn => {
     btn.addEventListener('click', function () {
@@ -187,7 +198,7 @@ function getMathHtml(teamId: string): string {
       lastOp = op;
       document.querySelectorAll('.ops button').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
-      vscode.postMessage({ command: 'calculate', a, b, op });
+      sendCalculate(a, b, op);
     });
   });
 
@@ -195,15 +206,21 @@ function getMathHtml(teamId: string): string {
     if (e.key === 'Enter' && lastOp) {
       const a = parseFloat(document.getElementById('numA').value) || 0;
       const b = parseFloat(document.getElementById('numB').value) || 0;
-      vscode.postMessage({ command: 'calculate', a, b, op: lastOp });
+      sendCalculate(a, b, lastOp);
     }
   });
 
   window.addEventListener('message', e => {
-    const { command, value } = e.data;
-    if (command !== 'result') { return; }
+    const msg = e.data;
+    if (msg.jsonrpc !== '2.0') { return; }
 
     const el = document.getElementById('result');
+    if (msg.error) {
+      el.innerHTML = '<span class="error">' + msg.error.message + '</span>';
+      return;
+    }
+    const value = msg.result && msg.result.value !== undefined ? msg.result.value : '';
+
     if (typeof value === 'string' && value.startsWith('Error')) {
       el.innerHTML = '<span class="error">' + value + '</span>';
     } else {
