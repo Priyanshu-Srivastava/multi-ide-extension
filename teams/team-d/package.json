@@ -11,8 +11,7 @@
     "spec:validate": "node ../../scripts/validate-spec.js"
   },
   "dependencies": {
-    "@omni/core": "*",
-    "@omni/adapters-vscode": "*"
+    "@omni/core": "*"
   },
   "devDependencies": {
     "@types/vscode": "^1.80.0"
