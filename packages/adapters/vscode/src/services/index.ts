@@ -9,3 +9,4 @@
  * interpret results) belongs in the team feature folder — not here.
  */
 export { WorkspaceReader } from './workspace-reader';
+export * from './pr-review';

@@ -59,8 +59,13 @@ EXAMPLES:
 # Get feature paths and validate branch
 $paths = Get-FeaturePathsEnv
 
-if (-not (Test-TeamScopedFeatureDir -FeatureDir $paths.FEATURE_DIR -RepoRoot $paths.REPO_ROOT)) {
-    Write-Output "ERROR: Feature directory must be in teams/<team>/specs/<feature-name>. Current: $($paths.FEATURE_DIR)"
+$currentTeam = if ($env:SPECIFY_TEAM) { $env:SPECIFY_TEAM } else { '' }
+if (-not (Test-TeamScopedFeatureDir -FeatureDir $paths.FEATURE_DIR -RepoRoot $paths.REPO_ROOT -Team $currentTeam)) {
+    if ($currentTeam -eq 'controller-pod') {
+        Write-Output "ERROR: controller-pod feature directory must be in specs/<feature-name>. Current: $($paths.FEATURE_DIR)"
+    } else {
+        Write-Output "ERROR: Feature directory must be in teams/<team>/specs/<feature-name>. Current: $($paths.FEATURE_DIR)"
+    }
     Write-Output "Set SPECIFY_TEAM and SPECIFY_FEATURE_DIRECTORY (or run /speckit.specify with team context) to continue."
     exit 1
 }

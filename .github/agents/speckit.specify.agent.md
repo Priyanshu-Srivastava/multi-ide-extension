@@ -58,16 +58,34 @@ The text the user typed after `/speckit.specify` in the triggering message **is*
 
 Given that feature description, do this:
 
+0. **Mandatory scope resolution (global vs team)**:
+   - Determine whether the requested feature is `global` (cross-team shared dependency) or `team` scoped.
+   - If the request explicitly states global/shared/all-team dependency, set scope to `global`.
+   - Otherwise default to `team` scope.
+   - If ambiguous, ask the user to choose one: `global` or `team`.
+
+0.1. **Mandatory MCP dependency routing (automatic companion global spec)**:
+   - If scope is `team` and the request includes MCP tool creation or modification responsibility outside the requesting team, automatically create a linked global dependency feature spec in `specs/<feature>/`.
+   - Treat these as MCP global dependency signals:
+     - New MCP tool implementation
+     - MCP contract change (`packages/core/src/ports/*`)
+     - MCP registry/config change (`packages/mcp/src/registry/*`, `packages/mcp/src/config/*`)
+     - Explicit user statement that MCP tool work is handled by a different team
+    - When signal is present, create both:
+     - Primary team feature spec under `teams/<team>/specs/<feature>/`
+       - Companion global dependency spec under `specs/<feature>/` with required `sceps.mc`
+   - Link the specs by adding cross-reference notes in each `spec.md`.
+
 0. **Mandatory team resolution (ask only if not in memory)**:
-    - Before branch generation, directory resolution, or file creation, resolve the active team.
-    - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`.
+   - Before branch generation, directory resolution, or file creation, resolve the active team when scope is `team`.
+    - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`, `controller-pod`.
     - Resolution order:
        1. If user explicitly provides `SPECIFY_TEAM` in the current request, use it.
        2. Else, check session memory at `/memories/session/specify-team.md`.
-       3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the four teams.
-   - Only ask the user when no explicit team is provided and session memory does not contain a valid team.
-   - If session memory contains a valid team, do not ask again; reuse it automatically.
-    - After selection, persist team to session memory at `/memories/session/specify-team.md` and set `SPECIFY_TEAM` for the current run.
+       3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the five teams.
+   - Only ask the user when scope is `team`, no explicit team is provided, and session memory does not contain a valid team.
+   - If scope is `team` and session memory contains a valid team, do not ask again; reuse it automatically.
+   - After selection, persist team to session memory at `/memories/session/specify-team.md` and set `SPECIFY_TEAM` for the current run.
     - Also store a persistent preference note in user memory at `/memories/specify-team-preference.md` if not already present.
     - If a different team is selected than the remembered one, update session memory immediately.
 
@@ -91,19 +109,30 @@ Given that feature description, do this:
 
 3. **Create the spec feature directory**:
 
-   Specs must live under a team-scoped directory: `teams/<team>/specs/<feature-name>/`.
-   The team must resolve to one of: `team-a`, `team-b`, `team-c`, `team-d`.
+   Specs must live in one of these paths based on scope:
+   - Team scope: `teams/<team>/specs/<feature-name>/`
+   - Global scope: `specs/<feature-name>/`
+
+   For team scope, the team must resolve to one of: `team-a`, `team-b`, `team-c`, `team-d`, `controller-pod`.
+   **Note**: `controller-pod` is the global platform/MCP team; their specs live at `specs/<feature>/` (not under `teams/`).
 
    **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
    1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
-   2. Otherwise, auto-generate it under `teams/<team>/specs/`:
-      - Resolve `<team>` from `SPECIFY_TEAM` selected in step 0
-      - Do not infer team implicitly from natural language if step 0 did not produce a team
+    2. Otherwise, auto-generate it:
       - Check `.specify/init-options.json` for `branch_numbering`
       - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
-      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `teams/<team>/specs/`)
+         - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in the selected scope folder)
       - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
-      - Set `SPECIFY_FEATURE_DIRECTORY` to `teams/<team>/specs/<directory-name>`
+         - For team scope:
+            - Resolve `<team>` from `SPECIFY_TEAM` selected in step 0
+            - Do not infer team implicitly from natural language if step 0 did not produce a team
+            - If `<team>` is `controller-pod`: Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+            - Otherwise: Set `SPECIFY_FEATURE_DIRECTORY` to `teams/<team>/specs/<directory-name>`
+         - For global scope:
+            - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+
+      **Companion global dependency directory (when MCP dependency routing is triggered)**:
+      - If scope is `team` and MCP global dependency signal is present, also resolve `GLOBAL_SPECIFY_FEATURE_DIRECTORY` under `specs/<directory-name>` using the same numbering policy.
 
    **Create the directory and Speckit files**:
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
@@ -111,28 +140,37 @@ Given that feature description, do this:
    - Copy `.specify/templates/plan-template.md` to `SPECIFY_FEATURE_DIRECTORY/plan.md` as the starting point
    - Copy `.specify/templates/tasks-template.md` to `SPECIFY_FEATURE_DIRECTORY/tasks.md` as the starting point
    - Create `SPECIFY_FEATURE_DIRECTORY/research.md` with a heading and placeholder decision log
-   - Create `SPECIFY_FEATURE_DIRECTORY/openspec.json` with a minimal valid scaffold:
+    - Create `SPECIFY_FEATURE_DIRECTORY/openspec.json` with a minimal valid scaffold:
      ```json
      {
        "$schema": "https://json-schema.org/draft-07/schema",
-       "name": "@omni/<team>",
+          "name": "@omni/<team-or-global>",
        "version": "1.0.0",
-       "description": "OpenSpec contract for <team> feature",
+          "description": "OpenSpec contract for <team-or-global> feature",
        "tools": []
      }
      ```
+    - If scope is `global`, create `SPECIFY_FEATURE_DIRECTORY/sceps.mc` (mandatory global spec marker file).
+    - If companion global dependency directory is required:
+       - `mkdir -p GLOBAL_SPECIFY_FEATURE_DIRECTORY`
+       - Create only `spec.md` in `GLOBAL_SPECIFY_FEATURE_DIRECTORY` as a dependency/review artifact
+       - Create mandatory `GLOBAL_SPECIFY_FEATURE_DIRECTORY/sceps.mc`
+       - Set `GLOBAL_SPEC_FILE` to `GLOBAL_SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Persist the resolved path to `.specify/feature.json`:
      ```json
      {
-       "feature_directory": "<resolved feature dir>"
+          "feature_directory": "<resolved feature dir>",
+          "global_dependency_feature_directory": "<resolved global feature dir or empty>"
      }
      ```
    Write the actual resolved directory path value (for example, `teams/team-a/specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
      This allows downstream commands (`/speckit.plan`, `/speckit.tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `/speckit.specify` invocation
+   - You must create one primary feature per `/speckit.specify` invocation
+   - You may create one additional companion global dependency feature when MCP dependency routing is triggered
+   - Companion global dependency feature is spec-only; `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` execution remains team-scoped
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
 
@@ -161,7 +199,13 @@ Given that feature description, do this:
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
        Each criterion must be verifiable without implementation details
     7. Identify Key Entities (if data involved)
-    8. Return: SUCCESS (spec ready for planning)
+    8. **Mandatory repository guardrails (always include in every spec)**:
+       - Add explicit hexagonal architecture constraints in the spec so domain logic is isolated and adapter/integration concerns are outside core behavior.
+       - Add explicit requirement that MCP tools, contracts, and registries are global shared assets under `packages/*`, not team-private implementations under `teams/<team>/src`.
+       - Add explicit dependency-direction constraint: domain depends on ports; adapters depend on ports; domain must not depend on adapter implementations.
+       - If the feature involves external integrations (for example GitHub MCP), require port-based integration contracts and adapter replaceability in the requirements/constraints.
+       - If scope is `global`, include explicit statement that the feature is cross-team shared and must be implemented in global packages.
+   9. Return: SUCCESS (spec ready for planning)
 
 6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 

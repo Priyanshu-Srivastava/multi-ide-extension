@@ -2,21 +2,28 @@
 // Sidecar IPC — used by ExternalMCPToolAdapter to talk to external MCP servers
 // ---------------------------------------------------------------------------
 
+export type RpcInvocationStatus = 'success' | 'failure';
+
 export interface SidecarRequest {
   jsonrpc: '2.0';
   id: string | number;
   method: string;
   params?: unknown;
+  correlationId?: string;
 }
 
 export interface SidecarResponse {
   jsonrpc: '2.0';
   id: string | number;
   result?: unknown;
+  status?: RpcInvocationStatus;
+  correlationId?: string;
+  retryAfter?: number;
   error?: {
     code: number;
     message: string;
     data?: unknown;
+    retryAfter?: number;
   };
 }
 

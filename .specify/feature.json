@@ -1,3 +1,4 @@
 {
-  "feature_directory": "teams/team-d/specs/001-project-analyser"
+  "feature_directory": "specs/001-pr-review-mcp-dependencies",
+  "team_feature_directory": "teams/team-c/specs/001-pr-review-visualizer-analyzer"
 }

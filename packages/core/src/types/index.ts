@@ -14,3 +14,5 @@ export interface ToolManifest {
   version: string;
   environments: EnvironmentId[];
 }
+
+export * from './pr-review-types';

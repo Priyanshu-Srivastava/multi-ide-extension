@@ -3,3 +3,5 @@ dist/
 build/
 coverage/
 *.min.js
+.turbo/
+artifacts/

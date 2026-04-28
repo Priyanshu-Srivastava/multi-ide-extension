@@ -5,7 +5,7 @@
 This is the single central constitution for the repository and is the source of truth for delivery governance.
 
 - Canonical path: `specs/constitution.md`
-- Applies to all teams (`teams/team-a` through `teams/team-d`), shared packages, adapters, controller code, and CI/CD workflows
+- Applies to all teams (`teams/team-a` through `teams/team-d`), the `controller-pod` platform team, shared packages, adapters, controller code, and CI/CD workflows
 - Team-level documents must comply with this file and must not define conflicting constitutional rules
 
 ## 2. Architecture Principles (Non-Negotiable)
@@ -44,12 +44,20 @@ Each team owns only its own workspace package and feature folders.
 - Team specs location: `teams/<team>/specs/`
 - Cross-team edits require explicit review from impacted team maintainers
 
+**controller-pod** is the global platform/MCP team. Its responsibilities and folder layout differ:
+
+- Owns all shared MCP tooling, registries, and platform packages under `packages/mcp/` and `packages/core/`
+- Feature specs live directly under `specs/<feature>/` (not under `teams/`)
+- Has full-stack delivery authority: `controller-pod` runs the complete spec → plan → tasks → implement workflow on global features
+
 ### 3.2 Spec Folder Contract
 
 All feature specs must be feature-scoped folders.
 
-- Required path shape: `teams/<team>/specs/<feature>/`
+- Team feature path shape: `teams/<team>/specs/<feature>/`
+- Global cross-team dependency path shape: `specs/<feature>/`
 - Root-level spec files under `teams/<team>/specs/` are prohibited
+- Root-level feature files under `specs/` are prohibited (except `constitution.md`)
 - Legacy `specs/features` layout is prohibited
 
 ### 3.3 Required Files Per Feature
@@ -61,6 +69,15 @@ Every `teams/<team>/specs/<feature>/` folder must contain all of:
 3. `plan.md`
 4. `tasks.md`
 5. `research.md`
+
+Every global dependency `specs/<feature>/` folder **used by the controller-pod team** must contain all of:
+
+1. `spec.md`
+2. `sceps.mc`
+3. `plan.md` (when the controller-pod team is executing delivery)
+4. `tasks.md` (when the controller-pod team is executing delivery)
+
+Global dependency specs authored by individual feature teams (as companion cross-team routing specs) contain only `spec.md` + `sceps.mc` and are review/approval artifacts only.
 
 ## 4. Specification And Planning Governance
 
@@ -75,7 +92,7 @@ No implementation starts before specification.
 
 `openspec.json` must satisfy these baseline rules:
 
-1. `name` equals `@omni/<team>`
+1. `name` equals `@omni/<team>` for team features
 2. `version` is a string
 3. `tools` is an array
 
@@ -85,6 +102,16 @@ All team planning and analysis flows must treat this central constitution as aut
 
 - Team workflows must reference `specs/constitution.md`
 - No duplicate constitutions under team or tool subfolders
+
+### 4.4 MCP Global Dependency Routing
+
+When a team-scoped feature requires MCP tool creation or shared MCP contract/registry changes, a companion global feature spec is mandatory.
+
+- Primary product behavior remains in `teams/<team>/specs/<feature>/`
+- MCP shared dependency review notes must be specified in `specs/<feature>/`
+- Companion global feature folder must include mandatory `sceps.mc`
+- Team and global specs must cross-reference each other in `spec.md`
+- Plan/tasks/implement execution in this workflow is team-scoped only (`teams/<team>/specs/<feature>/`).
 
 ## 5. CI/CD And Quality Gates
 

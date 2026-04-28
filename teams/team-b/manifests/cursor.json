@@ -2,7 +2,7 @@
   "name": "omni-cursor-team-b",
   "displayName": "Omni IDE — Team B (Cursor)",
   "description": "Omni multi-IDE extension for Team B — Cursor build.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },

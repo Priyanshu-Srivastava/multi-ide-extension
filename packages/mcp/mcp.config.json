@@ -5,6 +5,54 @@
       "toolId": "example-search",
       "enabled": false,
       "settings": {}
+    },
+    {
+      "toolId": "github.pull_request_read",
+      "enabled": true,
+      "settings": {
+        "teamId": "controller-pod",
+        "upstreamName": "pull_request_read",
+        "toolset": "pull_requests",
+        "requiredScope": "repo",
+        "readOnly": true,
+        "transportType": "http-remote"
+      }
+    },
+    {
+      "toolId": "github.list_pull_requests",
+      "enabled": true,
+      "settings": {
+        "teamId": "controller-pod",
+        "upstreamName": "list_pull_requests",
+        "toolset": "pull_requests",
+        "requiredScope": "repo",
+        "readOnly": true,
+        "transportType": "http-remote"
+      }
+    },
+    {
+      "toolId": "github.pull_request_review_write",
+      "enabled": true,
+      "settings": {
+        "teamId": "controller-pod",
+        "upstreamName": "pull_request_review_write",
+        "toolset": "pull_requests",
+        "requiredScope": "repo",
+        "readOnly": false,
+        "transportType": "http-remote"
+      }
+    },
+    {
+      "toolId": "github.add_comment_to_pending_review",
+      "enabled": true,
+      "settings": {
+        "teamId": "controller-pod",
+        "upstreamName": "add_comment_to_pending_review",
+        "toolset": "pull_requests",
+        "requiredScope": "repo",
+        "readOnly": false,
+        "transportType": "http-remote"
+      }
     }
   ]
 }

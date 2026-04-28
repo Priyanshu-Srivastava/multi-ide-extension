@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { MCPRegistry } from '@omni/mcp';
+import { ExternalMCPToolAdapter, MCPRegistry } from '@omni/mcp';
 import type { MCPConfig } from '@omni/mcp';
 import { LLMProviderRegistry } from '@omni/core';
-import type { LLMConfig, LLMPort } from '@omni/core';
+import type { LLMConfig, LLMPort, SidecarRequest, SidecarResponse, SidecarTransport } from '@omni/core';
 import { registerLLMProviders } from './llm';
 import {
   WorkspaceReadFileTool,
@@ -31,19 +31,33 @@ type TeamFeatures = {
 let registry: MCPRegistry | undefined;
 let llmAdapter: LLMPort | undefined;
 
+const GITHUB_MCP_URL = 'https://api.githubcopilot.com/mcp/';
+export const PR_FETCH_MAX_LATENCY_MS = 5_000;
+
+const GITHUB_READ_TOOL_IDS = [
+  'github.pull_request_read',
+  'github.list_pull_requests',
+];
+
+const GITHUB_WRITE_TOOL_IDS = [
+  'github.pull_request_review_write',
+  'github.add_comment_to_pending_review',
+];
+
 // ---------------------------------------------------------------------------
 // Feature descriptors — add an entry here whenever a team ships a new feature.
 // hasUI: true  → clicking the item opens the feature's webview panel.
 // hasUI: false → clicking runs a background command with no visual panel.
 // ---------------------------------------------------------------------------
-const isTeamD = String(TEAM_ID) === 'team-d';
-
-const TEAM_FEATURES: Array<{ id: string; label: string; hasUI: boolean }> = [
-  { id: 'openMath', label: 'Math Panel', hasUI: true },
-  ...(isTeamD
-    ? [{ id: 'openAnalysis', label: 'Project Analyser', hasUI: true }]
-    : []),
-];
+function getTeamFeatures(teamId: string): Array<{ id: string; label: string; hasUI: boolean }> {
+  const isTeamD = teamId === 'team-d';
+  return [
+    { id: 'openMath', label: 'Math Panel', hasUI: true },
+    ...(isTeamD
+      ? [{ id: 'openAnalysis', label: 'Project Analyser', hasUI: true }]
+      : []),
+  ];
+}
 
 interface FeatureNode {
   kind: 'header' | 'feature';
@@ -53,6 +67,11 @@ interface FeatureNode {
 }
 
 class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
+  constructor(
+    private readonly teamId: string,
+    private readonly features: Array<{ id: string; label: string; hasUI: boolean }>,
+  ) {}
+
   getTreeItem(element: FeatureNode): vscode.TreeItem {
     if (element.kind === 'header') {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Expanded);
@@ -68,7 +87,7 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
     if (element.hasUI) {
       item.tooltip = `Open ${element.label}`;
       item.command = {
-        command: `omni.${TEAM_ID}.feature.${element.featureId}`,
+        command: `omni.${this.teamId}.feature.${element.featureId}`,
         title:   `Open ${element.label}`,
       };
     }
@@ -82,7 +101,7 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
       return [{ kind: 'header', label: teamLabel }];
     }
     if (element.kind === 'header') {
-      return TEAM_FEATURES.map((f) => ({
+      return this.features.map((f) => ({
         kind:      'feature' as const,
         label:     f.label,
         featureId: f.id,
@@ -94,18 +113,21 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const teamId = resolveTeamId(context);
+  const teamFeaturesList = getTeamFeatures(teamId);
+
   const config = resolveConfig(context);
   registry = new MCPRegistry(config);
 
   // Register all LLM providers and create the initial adapter from settings.
   registerLLMProviders();
-  llmAdapter = createLLMAdapterFromSettings(context);
+  llmAdapter = createLLMAdapterFromSettings();
 
   // Hot-reload LLM adapter when user changes provider settings.
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('omni.llm')) {
-        llmAdapter = createLLMAdapterFromSettings(context);
+        llmAdapter = createLLMAdapterFromSettings();
         vscode.window.showInformationMessage(
           `Omni AI provider switched to: ${llmAdapter.provider}`,
         );
@@ -124,34 +146,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     new GitStatusTool(),
   ].forEach((tool) => registry!.register(tool));
 
+  await registerGitHubPRTools();
+
   // Sidebar — one Features view per team to avoid conflicts across installed extensions.
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(`omni-features-${TEAM_ID}`, new FeaturesViewProvider()),
+    vscode.window.registerTreeDataProvider(
+      `omni-features-${teamId}`,
+      new FeaturesViewProvider(teamId, teamFeaturesList),
+    ),
   );
 
   // Status bar
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-  statusBar.text    = `$(plug) Omni [${TEAM_ID}]`;
-  statusBar.tooltip = `Omni IDE Extension — Team: ${TEAM_ID}`;
-  statusBar.command = `omni.${TEAM_ID}.showInfo`;
+  statusBar.text    = `$(plug) Omni [${teamId}]`;
+  statusBar.tooltip = `Omni IDE Extension — Team: ${teamId}`;
+  statusBar.command = `omni.${teamId}.showInfo`;
   statusBar.show();
   context.subscriptions.push(statusBar);
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const teamFeatures = require(`@omni/${TEAM_ID}`) as TeamFeatures;
+  const teamFeatures = require(`@omni/${teamId}`) as TeamFeatures;
 
   context.subscriptions.push(
     // Status-bar info command
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.showInfo`, () => {
-      vscode.window.showInformationMessage(`Omni IDE — ${TEAM_ID}`);
+    vscode.commands.registerCommand(`omni.${teamId}.showInfo`, () => {
+      vscode.window.showInformationMessage(`Omni IDE — ${teamId}`);
     }),
 
     // Feature commands — one per TEAM_FEATURES entry
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.feature.openMath`, () => {
-      teamFeatures.openMathPanel(context, TEAM_ID);
+    vscode.commands.registerCommand(`omni.${teamId}.feature.openMath`, () => {
+      teamFeatures.openMathPanel(context, teamId);
     }),
 
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.feature.openAnalysis`, () => {
+    vscode.commands.registerCommand(`omni.${teamId}.feature.openAnalysis`, () => {
       if (!teamFeatures.openAnalysisPanel) {
         vscode.window.showWarningMessage('Project Analyser is not available for this team package.');
         return;
@@ -167,6 +194,47 @@ export function deactivate(): void {
   llmAdapter = undefined;
 }
 
+function resolveTeamId(context: vscode.ExtensionContext): string {
+  const configuredTeamId = String(TEAM_ID);
+  if (configuredTeamId !== 'unknown') {
+    return configuredTeamId;
+  }
+
+  const packageJson = context.extension.packageJSON as {
+    name?: string;
+    keywords?: unknown;
+    contributes?: {
+      views?: Record<string, Array<{ id?: string }>>;
+    };
+  };
+
+  const viewIds = packageJson.contributes?.views?.['omni-explorer']
+    ?.map((view) => view.id)
+    .filter((id): id is string => typeof id === 'string' && id.startsWith('omni-features-'));
+
+  if (viewIds && viewIds.length === 1) {
+    return viewIds[0].replace('omni-features-', '');
+  }
+
+  if (typeof packageJson.name === 'string') {
+    const match = packageJson.name.match(/team-[a-z0-9-]+/);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  if (Array.isArray(packageJson.keywords)) {
+    const keyword = packageJson.keywords.find(
+      (entry): entry is string => typeof entry === 'string' && /^team-[a-z0-9-]+$/.test(entry),
+    );
+    if (keyword) {
+      return keyword;
+    }
+  }
+
+  return configuredTeamId;
+}
+
 // ---------------------------------------------------------------------------
 // Config helpers
 // ---------------------------------------------------------------------------
@@ -180,7 +248,119 @@ const VS_CODE_TOOL_IDS = [
   'vscode.commands.executeCommand',
   'vscode.window.getActiveEditor',
   'vscode.git.status',
+  ...GITHUB_READ_TOOL_IDS,
+  ...GITHUB_WRITE_TOOL_IDS,
 ];
+
+async function getGitHubToken(): Promise<string | undefined> {
+  try {
+    const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+    if (session?.accessToken) {
+      return session.accessToken;
+    }
+  } catch {
+    // Fall through to PAT fallback.
+  }
+
+  const pat = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  return pat && pat.trim().length > 0 ? pat.trim() : undefined;
+}
+
+function createGitHubTransport(token: string, readOnly: boolean): SidecarTransport {
+  return async (request: SidecarRequest): Promise<SidecarResponse> => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-MCP-Toolsets': 'pull_requests,context',
+    };
+
+    if (readOnly) {
+      headers['X-MCP-Readonly'] = 'true';
+    }
+
+    const body = {
+      jsonrpc: '2.0',
+      id: request.id,
+      method: request.method,
+      params: request.params,
+    };
+
+    try {
+      const response = await fetch(GITHUB_MCP_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        return {
+          jsonrpc: '2.0',
+          id: request.id,
+          error: {
+            code: response.status,
+            message: `GitHub MCP HTTP error: ${response.status} ${response.statusText}`,
+          },
+        };
+      }
+
+      const json = (await response.json()) as SidecarResponse;
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        result: json.result ?? json,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        error: {
+          code: -32000,
+          message: `GitHub MCP request failed: ${message}`,
+        },
+      };
+    }
+  };
+}
+
+async function registerGitHubPRTools(): Promise<void> {
+  if (!registry) {
+    return;
+  }
+
+  const token = await getGitHubToken();
+  if (!token) {
+    vscode.window.showWarningMessage(
+      'Omni PR Review: GitHub connection required. Sign in with GitHub or set GITHUB_PERSONAL_ACCESS_TOKEN.',
+    );
+    return;
+  }
+
+  const readTransport = createGitHubTransport(token, true);
+  const writeTransport = createGitHubTransport(token, false);
+
+  for (const toolId of GITHUB_READ_TOOL_IDS) {
+    registry.register(
+      new ExternalMCPToolAdapter({
+        toolId,
+        displayName: toolId,
+        teamId: 'controller-pod',
+        transport: readTransport,
+      }),
+    );
+  }
+
+  for (const toolId of GITHUB_WRITE_TOOL_IDS) {
+    registry.register(
+      new ExternalMCPToolAdapter({
+        toolId,
+        displayName: toolId,
+        teamId: 'controller-pod',
+        transport: writeTransport,
+      }),
+    );
+  }
+}
 
 function resolveConfig(context: vscode.ExtensionContext): MCPConfig {
   const configPath = path.join(context.extensionPath, 'mcp.config.json');
@@ -202,7 +382,7 @@ function resolveConfig(context: vscode.ExtensionContext): MCPConfig {
 // LLM helpers
 // ---------------------------------------------------------------------------
 
-function buildLLMConfig(context: vscode.ExtensionContext): LLMConfig {
+function buildLLMConfig(): LLMConfig {
   const cfg = vscode.workspace.getConfiguration('omni.llm');
   const provider = cfg.get<string>('provider', 'copilot');
   return {
@@ -214,8 +394,8 @@ function buildLLMConfig(context: vscode.ExtensionContext): LLMConfig {
   };
 }
 
-function createLLMAdapterFromSettings(context: vscode.ExtensionContext): LLMPort {
-  const config = buildLLMConfig(context);
+function createLLMAdapterFromSettings(): LLMPort {
+  const config = buildLLMConfig();
   const descriptor = LLMProviderRegistry.get(config.provider);
   if (!descriptor) {
     vscode.window.showWarningMessage(
@@ -262,12 +442,13 @@ export async function discoverAvailableModels(): Promise<
   try {
     // Selecting with empty criteria returns ALL available models
     const allModels = await vscode.lm.selectChatModels({});
+    type ModelMetadata = { vendor?: string; family?: string; version?: string };
     return allModels.map((model) => ({
       id: model.id,
       name: model.id, // model.id is the display name in practice
-      vendor: (model as any).vendor,
-      family: (model as any).family,
-      version: (model as any).version,
+      vendor: (model as unknown as ModelMetadata).vendor,
+      family: (model as unknown as ModelMetadata).family,
+      version: (model as unknown as ModelMetadata).version,
       maxInputTokens: model.maxInputTokens,
       contextWindow: model.maxInputTokens, // alias for clarity
     }));

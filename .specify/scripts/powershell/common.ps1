@@ -156,7 +156,8 @@ function Test-FeatureBranch {
 function Test-TeamScopedFeatureDir {
     param(
         [Parameter(Mandatory=$true)][string]$FeatureDir,
-        [Parameter(Mandatory=$true)][string]$RepoRoot
+        [Parameter(Mandatory=$true)][string]$RepoRoot,
+        [string]$Team = ''
     )
 
     $resolvedRepo = Resolve-Path -LiteralPath $RepoRoot -ErrorAction SilentlyContinue
@@ -173,6 +174,13 @@ function Test-TeamScopedFeatureDir {
     }
 
     $relative = $featureNorm.Substring($repoNorm.Length + 1)
+
+    # controller-pod team: specs live at specs/<feature>/ (not under teams/)
+    if ($Team -eq 'controller-pod') {
+        return $relative -match '^specs/[^/]+/?$'
+    }
+
+    # All other teams: standard teams/<team>/specs/<feature>/ path
     return $relative -match '^teams/team-[a-d]/specs/[^/]+/?$'
 }
 
@@ -181,6 +189,10 @@ function Get-FeatureDir {
     $team = $env:SPECIFY_TEAM
     if (-not $team) {
         $team = "team-a"
+    }
+    # controller-pod team: specs live directly under specs/, not teams/
+    if ($team -eq 'controller-pod') {
+        return Join-Path $RepoRoot "specs/$Branch"
     }
     Join-Path $RepoRoot "teams/$team/specs/$Branch"
 }
