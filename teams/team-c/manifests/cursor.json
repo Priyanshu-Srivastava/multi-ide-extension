@@ -2,7 +2,7 @@
   "name": "omni-cursor-team-c",
   "displayName": "Omni IDE — Team C (Cursor)",
   "description": "Omni multi-IDE extension for Team C — Cursor build.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "Priyanshu",
   "license": "MIT",
   "engines": { "vscode": "^1.80.0" },
@@ -31,7 +31,28 @@
     "commands": [
       { "command": "omni.team-c.showInfo",             "title": "Omni: Show Extension Info" },
       { "command": "omni.team-c.feature.openMath",     "title": "Omni: Open Math Panel"      }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "omni.team-c.showInfo",
+          "when": "view == omni-features-team-c",
+          "group": "navigation@1"
+        },
+        {
+          "command": "omni.team-c.feature.openMath",
+          "when": "view == omni-features-team-c",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "omni.team-c.feature.openMath",
+          "when": "view == omni-features-team-c && viewItem == feature",
+          "group": "inline@1"
+        }
+      ]
+    }
   },
   "repository": { "type": "git", "url": "https://github.com/your-org/multi-ide-extension" }
 }

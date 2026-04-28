@@ -49,14 +49,15 @@ const GITHUB_WRITE_TOOL_IDS = [
 // hasUI: true  → clicking the item opens the feature's webview panel.
 // hasUI: false → clicking runs a background command with no visual panel.
 // ---------------------------------------------------------------------------
-const isTeamD = String(TEAM_ID) === 'team-d';
-
-const TEAM_FEATURES: Array<{ id: string; label: string; hasUI: boolean }> = [
-  { id: 'openMath', label: 'Math Panel', hasUI: true },
-  ...(isTeamD
-    ? [{ id: 'openAnalysis', label: 'Project Analyser', hasUI: true }]
-    : []),
-];
+function getTeamFeatures(teamId: string): Array<{ id: string; label: string; hasUI: boolean }> {
+  const isTeamD = teamId === 'team-d';
+  return [
+    { id: 'openMath', label: 'Math Panel', hasUI: true },
+    ...(isTeamD
+      ? [{ id: 'openAnalysis', label: 'Project Analyser', hasUI: true }]
+      : []),
+  ];
+}
 
 interface FeatureNode {
   kind: 'header' | 'feature';
@@ -66,6 +67,11 @@ interface FeatureNode {
 }
 
 class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
+  constructor(
+    private readonly teamId: string,
+    private readonly features: Array<{ id: string; label: string; hasUI: boolean }>,
+  ) {}
+
   getTreeItem(element: FeatureNode): vscode.TreeItem {
     if (element.kind === 'header') {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.Expanded);
@@ -81,7 +87,7 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
     if (element.hasUI) {
       item.tooltip = `Open ${element.label}`;
       item.command = {
-        command: `omni.${TEAM_ID}.feature.${element.featureId}`,
+        command: `omni.${this.teamId}.feature.${element.featureId}`,
         title:   `Open ${element.label}`,
       };
     }
@@ -95,7 +101,7 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
       return [{ kind: 'header', label: teamLabel }];
     }
     if (element.kind === 'header') {
-      return TEAM_FEATURES.map((f) => ({
+      return this.features.map((f) => ({
         kind:      'feature' as const,
         label:     f.label,
         featureId: f.id,
@@ -107,6 +113,9 @@ class FeaturesViewProvider implements vscode.TreeDataProvider<FeatureNode> {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const teamId = resolveTeamId(context);
+  const teamFeaturesList = getTeamFeatures(teamId);
+
   const config = resolveConfig(context);
   registry = new MCPRegistry(config);
 
@@ -141,32 +150,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Sidebar — one Features view per team to avoid conflicts across installed extensions.
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(`omni-features-${TEAM_ID}`, new FeaturesViewProvider()),
+    vscode.window.registerTreeDataProvider(
+      `omni-features-${teamId}`,
+      new FeaturesViewProvider(teamId, teamFeaturesList),
+    ),
   );
 
   // Status bar
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-  statusBar.text    = `$(plug) Omni [${TEAM_ID}]`;
-  statusBar.tooltip = `Omni IDE Extension — Team: ${TEAM_ID}`;
-  statusBar.command = `omni.${TEAM_ID}.showInfo`;
+  statusBar.text    = `$(plug) Omni [${teamId}]`;
+  statusBar.tooltip = `Omni IDE Extension — Team: ${teamId}`;
+  statusBar.command = `omni.${teamId}.showInfo`;
   statusBar.show();
   context.subscriptions.push(statusBar);
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const teamFeatures = require(`@omni/${TEAM_ID}`) as TeamFeatures;
+  const teamFeatures = require(`@omni/${teamId}`) as TeamFeatures;
 
   context.subscriptions.push(
     // Status-bar info command
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.showInfo`, () => {
-      vscode.window.showInformationMessage(`Omni IDE — ${TEAM_ID}`);
+    vscode.commands.registerCommand(`omni.${teamId}.showInfo`, () => {
+      vscode.window.showInformationMessage(`Omni IDE — ${teamId}`);
     }),
 
     // Feature commands — one per TEAM_FEATURES entry
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.feature.openMath`, () => {
-      teamFeatures.openMathPanel(context, TEAM_ID);
+    vscode.commands.registerCommand(`omni.${teamId}.feature.openMath`, () => {
+      teamFeatures.openMathPanel(context, teamId);
     }),
 
-    vscode.commands.registerCommand(`omni.${TEAM_ID}.feature.openAnalysis`, () => {
+    vscode.commands.registerCommand(`omni.${teamId}.feature.openAnalysis`, () => {
       if (!teamFeatures.openAnalysisPanel) {
         vscode.window.showWarningMessage('Project Analyser is not available for this team package.');
         return;
@@ -180,6 +192,46 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 export function deactivate(): void {
   registry = undefined;
   llmAdapter = undefined;
+}
+
+function resolveTeamId(context: vscode.ExtensionContext): string {
+  if (TEAM_ID !== 'unknown') {
+    return TEAM_ID;
+  }
+
+  const packageJson = context.extension.packageJSON as {
+    name?: string;
+    keywords?: unknown;
+    contributes?: {
+      views?: Record<string, Array<{ id?: string }>>;
+    };
+  };
+
+  const viewIds = packageJson.contributes?.views?.['omni-explorer']
+    ?.map((view) => view.id)
+    .filter((id): id is string => typeof id === 'string' && id.startsWith('omni-features-'));
+
+  if (viewIds && viewIds.length === 1) {
+    return viewIds[0].replace('omni-features-', '');
+  }
+
+  if (typeof packageJson.name === 'string') {
+    const match = packageJson.name.match(/team-[a-z0-9-]+/);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  if (Array.isArray(packageJson.keywords)) {
+    const keyword = packageJson.keywords.find(
+      (entry): entry is string => typeof entry === 'string' && /^team-[a-z0-9-]+$/.test(entry),
+    );
+    if (keyword) {
+      return keyword;
+    }
+  }
+
+  return TEAM_ID;
 }
 
 // ---------------------------------------------------------------------------
