@@ -5,6 +5,11 @@ This directory contains released versions of the Omni IDE extension.
 ## Current Releases
 
 - **v1.0.0** — Initial release (all teams, all IDEs)
+- **v1.0.3 - v1.0.4** — Global GitHub MCP PR review integration hardening:
+   - Added shared GitHub PR read/write tool wiring for VS Code, Cursor, and JetBrains.
+   - Added JetBrains sidecar Docker bridge pinning (`ghcr.io/github/github-mcp-server:v1.0.3`) and lifecycle controls.
+   - Added global observability fields (`toolId`, `ide`, `operation`, `status`, `durationMs`, `correlationId`) and metric counters.
+   - Added architecture/path-lint and secret-policy validation gates for GitHub integration boundaries.
 
 ## GitHub Release Title Template
 

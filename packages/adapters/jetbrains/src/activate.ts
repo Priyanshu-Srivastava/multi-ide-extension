@@ -12,8 +12,8 @@
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
-import { JetBrainsSidecarBridge } from '.';
-import { MCPRegistry } from '@omni/mcp';
+import { isGitHubToolCall, JetBrainsSidecarBridge } from '.';
+import { MCPRegistry, registerGlobalGitHubTools } from '@omni/mcp';
 import { ExampleTool } from '@omni/mcp/tools';
 import type { MCPConfig } from '@omni/mcp';
 import { TEAM_ID } from './__generated__/team-config';
@@ -28,6 +28,7 @@ const HOST = process.env.OMNI_SIDECAR_HOST ?? '127.0.0.1';
 const config = resolveConfig();
 const registry = new MCPRegistry(config);
 registry.register(new ExampleTool());
+registerGlobalGitHubTools(registry, () => JetBrainsSidecarBridge);
 
 // ---------------------------------------------------------------------------
 // HTTP / JSON-RPC server
@@ -51,6 +52,23 @@ const server = http.createServer(async (req, res) => {
   req.on('end', async () => {
     try {
       const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+
+      if (isGitHubToolCall(body) && !hasGitHubToken()) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: body?.id ?? null,
+            status: 'failure',
+            error: {
+              code: 401,
+              message: 'GitHub connection required. Set GITHUB_PERSONAL_ACCESS_TOKEN before using GitHub MCP tools.',
+            },
+          }),
+        );
+        return;
+      }
+
       const response = await JetBrainsSidecarBridge(body);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(response));
@@ -86,4 +104,9 @@ function resolveConfig(): MCPConfig {
     }
   }
   return { version: '1', tools: [{ toolId: 'omni-example', enabled: true }] };
+}
+
+function hasGitHubToken(): boolean {
+  const token = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  return typeof token === 'string' && token.trim().length > 0;
 }

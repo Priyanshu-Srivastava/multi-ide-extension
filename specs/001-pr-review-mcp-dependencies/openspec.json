@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "name": "@omni/global",
+  "version": "1.0.0",
+  "description": "OpenSpec contract for GitHub MCP integration — PR review shared infrastructure (controller-pod delivery)",
+  "scope": "global",
+  "owner": "controller-pod",
+  "feature": "001-pr-review-mcp-dependencies",
+  "tools": [
+    {
+      "id": "github.pull_request_read",
+      "displayName": "GitHub PR Read",
+      "toolset": "pull_requests",
+      "readonly": true,
+      "transport": "http-remote",
+      "remoteUrl": "https://api.githubcopilot.com/mcp/",
+      "requiredHeaders": {
+        "X-MCP-Toolsets": "pull_requests,context",
+        "X-MCP-Readonly": "true"
+      },
+      "methods": [
+        "get",
+        "get_diff",
+        "get_status",
+        "get_files",
+        "get_review_comments",
+        "get_reviews",
+        "get_comments",
+        "get_check_runs"
+      ],
+      "requiredScope": "repo",
+      "teamId": "controller-pod",
+      "enabled": true
+    },
+    {
+      "id": "github.pull_request_review_write",
+      "displayName": "GitHub PR Review Write",
+      "toolset": "pull_requests",
+      "readonly": false,
+      "transport": "http-remote",
+      "remoteUrl": "https://api.githubcopilot.com/mcp/",
+      "requiredHeaders": {
+        "X-MCP-Toolsets": "pull_requests,context"
+      },
+      "methods": [
+        "create",
+        "submit_pending",
+        "delete_pending",
+        "resolve_thread",
+        "unresolve_thread"
+      ],
+      "requiredScope": "repo",
+      "teamId": "controller-pod",
+      "enabled": true
+    },
+    {
+      "id": "github.add_comment_to_pending_review",
+      "displayName": "GitHub Add Comment to Pending Review",
+      "toolset": "pull_requests",
+      "readonly": false,
+      "transport": "http-remote",
+      "remoteUrl": "https://api.githubcopilot.com/mcp/",
+      "requiredHeaders": {
+        "X-MCP-Toolsets": "pull_requests,context"
+      },
+      "requiredScope": "repo",
+      "teamId": "controller-pod",
+      "enabled": true
+    },
+    {
+      "id": "github.list_pull_requests",
+      "displayName": "GitHub List Pull Requests",
+      "toolset": "pull_requests",
+      "readonly": true,
+      "transport": "http-remote",
+      "remoteUrl": "https://api.githubcopilot.com/mcp/",
+      "requiredHeaders": {
+        "X-MCP-Toolsets": "pull_requests,context",
+        "X-MCP-Readonly": "true"
+      },
+      "requiredScope": "repo",
+      "teamId": "controller-pod",
+      "enabled": true
+    }
+  ],
+  "transports": {
+    "vscode": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "auth": "oauth-vscode",
+      "authFallback": "GITHUB_PERSONAL_ACCESS_TOKEN"
+    },
+    "cursor": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "auth": "oauth-vscode",
+      "authFallback": "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "note": "Cursor inherits VS Code adapter; no separate implementation"
+    },
+    "jetbrains": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server:v1.0.3",
+        "--toolsets=pull_requests,context"
+      ],
+      "auth": "GITHUB_PERSONAL_ACCESS_TOKEN",
+      "bridgePort": 7654,
+      "bridgePortEnv": "OMNI_SIDECAR_PORT"
+    }
+  }
+}

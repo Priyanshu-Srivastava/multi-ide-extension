@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { MCPRegistry } from '@omni/mcp';
+import { ExternalMCPToolAdapter, MCPRegistry } from '@omni/mcp';
 import type { MCPConfig } from '@omni/mcp';
 import { LLMProviderRegistry } from '@omni/core';
-import type { LLMConfig, LLMPort } from '@omni/core';
+import type { LLMConfig, LLMPort, SidecarRequest, SidecarResponse, SidecarTransport } from '@omni/core';
 import { registerLLMProviders } from './llm';
 import {
   WorkspaceReadFileTool,
@@ -30,6 +30,19 @@ type TeamFeatures = {
 
 let registry: MCPRegistry | undefined;
 let llmAdapter: LLMPort | undefined;
+
+const GITHUB_MCP_URL = 'https://api.githubcopilot.com/mcp/';
+export const PR_FETCH_MAX_LATENCY_MS = 5_000;
+
+const GITHUB_READ_TOOL_IDS = [
+  'github.pull_request_read',
+  'github.list_pull_requests',
+];
+
+const GITHUB_WRITE_TOOL_IDS = [
+  'github.pull_request_review_write',
+  'github.add_comment_to_pending_review',
+];
 
 // ---------------------------------------------------------------------------
 // Feature descriptors — add an entry here whenever a team ships a new feature.
@@ -99,13 +112,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Register all LLM providers and create the initial adapter from settings.
   registerLLMProviders();
-  llmAdapter = createLLMAdapterFromSettings(context);
+  llmAdapter = createLLMAdapterFromSettings();
 
   // Hot-reload LLM adapter when user changes provider settings.
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('omni.llm')) {
-        llmAdapter = createLLMAdapterFromSettings(context);
+        llmAdapter = createLLMAdapterFromSettings();
         vscode.window.showInformationMessage(
           `Omni AI provider switched to: ${llmAdapter.provider}`,
         );
@@ -123,6 +136,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     new GetActiveEditorTool(),
     new GitStatusTool(),
   ].forEach((tool) => registry!.register(tool));
+
+  await registerGitHubPRTools();
 
   // Sidebar — one Features view per team to avoid conflicts across installed extensions.
   context.subscriptions.push(
@@ -180,7 +195,119 @@ const VS_CODE_TOOL_IDS = [
   'vscode.commands.executeCommand',
   'vscode.window.getActiveEditor',
   'vscode.git.status',
+  ...GITHUB_READ_TOOL_IDS,
+  ...GITHUB_WRITE_TOOL_IDS,
 ];
+
+async function getGitHubToken(): Promise<string | undefined> {
+  try {
+    const session = await vscode.authentication.getSession('github', ['repo'], { createIfNone: true });
+    if (session?.accessToken) {
+      return session.accessToken;
+    }
+  } catch {
+    // Fall through to PAT fallback.
+  }
+
+  const pat = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+  return pat && pat.trim().length > 0 ? pat.trim() : undefined;
+}
+
+function createGitHubTransport(token: string, readOnly: boolean): SidecarTransport {
+  return async (request: SidecarRequest): Promise<SidecarResponse> => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'X-MCP-Toolsets': 'pull_requests,context',
+    };
+
+    if (readOnly) {
+      headers['X-MCP-Readonly'] = 'true';
+    }
+
+    const body = {
+      jsonrpc: '2.0',
+      id: request.id,
+      method: request.method,
+      params: request.params,
+    };
+
+    try {
+      const response = await fetch(GITHUB_MCP_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        return {
+          jsonrpc: '2.0',
+          id: request.id,
+          error: {
+            code: response.status,
+            message: `GitHub MCP HTTP error: ${response.status} ${response.statusText}`,
+          },
+        };
+      }
+
+      const json = (await response.json()) as SidecarResponse;
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        result: json.result ?? json,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        jsonrpc: '2.0',
+        id: request.id,
+        error: {
+          code: -32000,
+          message: `GitHub MCP request failed: ${message}`,
+        },
+      };
+    }
+  };
+}
+
+async function registerGitHubPRTools(): Promise<void> {
+  if (!registry) {
+    return;
+  }
+
+  const token = await getGitHubToken();
+  if (!token) {
+    vscode.window.showWarningMessage(
+      'Omni PR Review: GitHub connection required. Sign in with GitHub or set GITHUB_PERSONAL_ACCESS_TOKEN.',
+    );
+    return;
+  }
+
+  const readTransport = createGitHubTransport(token, true);
+  const writeTransport = createGitHubTransport(token, false);
+
+  for (const toolId of GITHUB_READ_TOOL_IDS) {
+    registry.register(
+      new ExternalMCPToolAdapter({
+        toolId,
+        displayName: toolId,
+        teamId: 'controller-pod',
+        transport: readTransport,
+      }),
+    );
+  }
+
+  for (const toolId of GITHUB_WRITE_TOOL_IDS) {
+    registry.register(
+      new ExternalMCPToolAdapter({
+        toolId,
+        displayName: toolId,
+        teamId: 'controller-pod',
+        transport: writeTransport,
+      }),
+    );
+  }
+}
 
 function resolveConfig(context: vscode.ExtensionContext): MCPConfig {
   const configPath = path.join(context.extensionPath, 'mcp.config.json');
@@ -202,7 +329,7 @@ function resolveConfig(context: vscode.ExtensionContext): MCPConfig {
 // LLM helpers
 // ---------------------------------------------------------------------------
 
-function buildLLMConfig(context: vscode.ExtensionContext): LLMConfig {
+function buildLLMConfig(): LLMConfig {
   const cfg = vscode.workspace.getConfiguration('omni.llm');
   const provider = cfg.get<string>('provider', 'copilot');
   return {
@@ -214,8 +341,8 @@ function buildLLMConfig(context: vscode.ExtensionContext): LLMConfig {
   };
 }
 
-function createLLMAdapterFromSettings(context: vscode.ExtensionContext): LLMPort {
-  const config = buildLLMConfig(context);
+function createLLMAdapterFromSettings(): LLMPort {
+  const config = buildLLMConfig();
   const descriptor = LLMProviderRegistry.get(config.provider);
   if (!descriptor) {
     vscode.window.showWarningMessage(
@@ -262,12 +389,13 @@ export async function discoverAvailableModels(): Promise<
   try {
     // Selecting with empty criteria returns ALL available models
     const allModels = await vscode.lm.selectChatModels({});
+    type ModelMetadata = { vendor?: string; family?: string; version?: string };
     return allModels.map((model) => ({
       id: model.id,
       name: model.id, // model.id is the display name in practice
-      vendor: (model as any).vendor,
-      family: (model as any).family,
-      version: (model as any).version,
+      vendor: (model as unknown as ModelMetadata).vendor,
+      family: (model as unknown as ModelMetadata).family,
+      version: (model as unknown as ModelMetadata).version,
       maxInputTokens: model.maxInputTokens,
       contextWindow: model.maxInputTokens, // alias for clarity
     }));

@@ -57,11 +57,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 0. **Mandatory team resolution (ask only if not in memory)**:
   - Before setup, document loading, or task generation, resolve the active team.
-  - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`.
+  - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`, `controller-pod`.
   - Resolution order:
     1. If user explicitly provides `SPECIFY_TEAM` in the current request, use it.
     2. Else, check session memory at `/memories/session/specify-team.md`.
-    3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the four teams.
+    3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the five teams.
   - Only ask the user when no explicit team is provided and session memory does not contain a valid team.
   - If session memory contains a valid team, do not ask again; reuse it automatically.
   - After selection, persist team to session memory at `/memories/session/specify-team.md` and set `SPECIFY_TEAM` for the current run.
@@ -69,7 +69,7 @@ You **MUST** consider the user input before proceeding (if not empty).
   - If no valid team is resolved, stop with an error and do not continue.
 
 1. **Setup**: Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-  - Validate that `FEATURE_DIR` is team-scoped under `teams/<team>/specs/<feature>/`.
+  - Validate that `FEATURE_DIR` is scoped correctly: `teams/<team>/specs/<feature>/` for regular teams, or `specs/<feature>/` for `controller-pod`.
   - Validate `<team>` from `FEATURE_DIR` matches `SPECIFY_TEAM`; if mismatch, stop with an error.
 
 2. **Load design documents**: Read from FEATURE_DIR:

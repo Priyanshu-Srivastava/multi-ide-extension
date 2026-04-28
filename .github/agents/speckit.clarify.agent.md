@@ -58,11 +58,11 @@ Execution steps:
 
 0. **Mandatory team resolution (ask only if not in memory)**:
    - Before prerequisite checks, spec loading, or clarification questions, resolve the active team.
-   - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`.
+   - Team must be selected from these options only: `team-a`, `team-b`, `team-c`, `team-d`, `controller-pod`.
    - Resolution order:
       1. If user explicitly provides `SPECIFY_TEAM` in the current request, use it.
       2. Else, check session memory at `/memories/session/specify-team.md`.
-      3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the four teams.
+      3. If session memory is missing, ask user in chat using a fixed-choice selector with exactly the five teams.
    - Only ask the user when no explicit team is provided and session memory does not contain a valid team.
    - If session memory contains a valid team, do not ask again; reuse it automatically.
    - After selection, persist team to session memory at `/memories/session/specify-team.md` and set `SPECIFY_TEAM` for the current run.
@@ -75,7 +75,7 @@ Execution steps:
    - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
    - If JSON parsing fails, abort and instruct user to re-run `/speckit.specify` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-   - Validate that `FEATURE_DIR` is team-scoped under `teams/<team>/specs/<feature>/`.
+   - Validate that `FEATURE_DIR` is scoped correctly: `teams/<team>/specs/<feature>/` for regular teams, or `specs/<feature>/` for `controller-pod`.
    - Validate `<team>` from `FEATURE_DIR` matches `SPECIFY_TEAM`; if mismatch, stop with an error.
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).

@@ -27,6 +27,17 @@
  *   registry.register(new ExternalMCPToolAdapter({ toolId: 'github', ...transport }));
  *   const result = await registry.execute('omni-example', { method: 'ping', params: {} });
  */
-export { MCPRegistry, ExternalMCPToolAdapter } from './registry';
+export {
+	MCPRegistry,
+	ExternalMCPToolAdapter,
+	GLOBAL_GITHUB_TOOLS,
+	registerGlobalGitHubTools,
+	type GlobalGitHubToolDefinition,
+	type MCPRegistryHooks,
+	type MCPInvocationEvent,
+	type MCPMetricEvent,
+	parseMixedContentPayload,
+} from './registry';
 export { MCPConfig, MCPToolConfig, getToolConfig, isToolEnabled } from './config';
 export { ExampleTool } from './tools';
+export * from './pr-review';

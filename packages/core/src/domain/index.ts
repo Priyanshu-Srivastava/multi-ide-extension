@@ -1,5 +1,6 @@
 import { IDEActionPort, TelemetryPort } from '../ports';
 export * from './analysis';
+export * from './pr-review';
 
 export interface FeatureContext {
   teamId: string;

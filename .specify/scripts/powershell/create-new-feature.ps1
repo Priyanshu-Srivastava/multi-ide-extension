@@ -18,13 +18,13 @@ $ErrorActionPreference = 'Stop'
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-Team <team-a|team-b|team-c|team-d>] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-Team <team-a|team-b|team-c|team-d|controller-pod>] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -DryRun             Compute branch name and paths without creating branches, directories, or files"
     Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
-    Write-Host "  -Team <team>        Team scope for specs path (team-a|team-b|team-c|team-d)"
+    Write-Host "  -Team <team>        Team scope for specs path (team-a|team-b|team-c|team-d|controller-pod)"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
@@ -39,7 +39,7 @@ if ($Help) {
 
 # Check if feature description provided
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-Team <team-a|team-b|team-c|team-d>] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-Team <team-a|team-b|team-c|team-d|controller-pod>] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     exit 1
 }
 
@@ -176,27 +176,32 @@ if (-not $Team) {
 }
 
 if (-not $Team) {
-    Write-Error "Error: Team is required. Provide -Team (team-a|team-b|team-c|team-d) or set SPECIFY_TEAM environment variable."
+    Write-Error "Error: Team is required. Provide -Team (team-a|team-b|team-c|team-d|controller-pod) or set SPECIFY_TEAM environment variable."
     exit 1
 }
 
-if ($Team -notin @('team-a', 'team-b', 'team-c', 'team-d')) {
-    Write-Error "Error: Invalid Team '$Team'. Expected one of: team-a, team-b, team-c, team-d."
+if ($Team -notin @('team-a', 'team-b', 'team-c', 'team-d', 'controller-pod')) {
+    Write-Error "Error: Invalid Team '$Team'. Expected one of: team-a, team-b, team-c, team-d, controller-pod."
     exit 1
 }
 
-$teamDir = Join-Path $repoRoot "teams/$Team"
-if (-not (Test-Path $teamDir -PathType Container)) {
-    Write-Error "Error: Team directory not found: $teamDir"
-    exit 1
+# controller-pod team: specs live at <repoRoot>/specs/, not under teams/
+if ($Team -eq 'controller-pod') {
+    $teamDir = $repoRoot
+    $specsDir = Join-Path $repoRoot 'specs'
+} else {
+    $teamDir = Join-Path $repoRoot "teams/$Team"
+    if (-not (Test-Path $teamDir -PathType Container)) {
+        Write-Error "Error: Team directory not found: $teamDir"
+        exit 1
+    }
+    $specsDir = Join-Path $teamDir 'specs'
 }
 
 # Check if git is available at this repo root (not a parent)
 $hasGit = Test-HasGit
 
 Set-Location $repoRoot
-
-$specsDir = Join-Path $teamDir 'specs'
 if (-not $DryRun) {
     New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 }
