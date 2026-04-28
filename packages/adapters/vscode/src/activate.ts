@@ -195,8 +195,9 @@ export function deactivate(): void {
 }
 
 function resolveTeamId(context: vscode.ExtensionContext): string {
-  if (TEAM_ID !== 'unknown') {
-    return TEAM_ID;
+  const configuredTeamId = String(TEAM_ID);
+  if (configuredTeamId !== 'unknown') {
+    return configuredTeamId;
   }
 
   const packageJson = context.extension.packageJSON as {
@@ -231,7 +232,7 @@ function resolveTeamId(context: vscode.ExtensionContext): string {
     }
   }
 
-  return TEAM_ID;
+  return configuredTeamId;
 }
 
 // ---------------------------------------------------------------------------
