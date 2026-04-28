@@ -13,7 +13,7 @@
 ## Phase 0: Cross-Team Dependency Gate (Blocking)
 
 - [X] T001 [FOUNDATION] Confirm companion global spec artifacts exist in `specs/001-pr-review-mcp-dependencies/`.
-- [ ] T002 [FOUNDATION] Confirm global MCP dependency decisions in `specs/001-pr-review-mcp-dependencies/spec.md` are approved by global MCP owners.
+- [X] T002 [FOUNDATION] Confirm global MCP dependency decisions in `specs/001-pr-review-mcp-dependencies/spec.md` are approved by global MCP owners.
 
 ## Phase 1: Team-C Foundations (Blocking)
 
